@@ -1,0 +1,46 @@
+services:
+  web:
+    build:
+      context: .
+      args:
+        DJANGO_SETTINGS_MODULE: motomundo.settings_production
+    environment:
+      DJANGO_SETTINGS_MODULE: motomundo.settings_production
+    env_file:
+      - .env.prod
+    command: /app/entrypoint.sh
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+  db:
+    image: postgres:15
+    env_file:
+      - .env.prod
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis:7
+    environment:
+      - REDIS_HOST=redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:

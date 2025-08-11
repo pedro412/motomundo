@@ -1,14 +1,10 @@
-version: '3.9'
-
 services:
   db:
     image: postgres:15
-    environment:
-      POSTGRES_DB: motomundo
-      POSTGRES_USER: motomundo
-      POSTGRES_PASSWORD: motomundo
+    env_file:
+      - .env.dev
     volumes:
-      - postgres_data:/var/lib/postgresql/data/
+      - postgres_data_dev:/var/lib/postgresql/data/
     ports:
       - "5432:5432"
 
@@ -27,13 +23,9 @@ services:
     depends_on:
       - db
       - redis
-    environment:
-      - DEBUG=1
-      - DJANGO_DB_HOST=db
-      - DJANGO_DB_NAME=motomundo
-      - DJANGO_DB_USER=motomundo
-      - DJANGO_DB_PASSWORD=motomundo
-      - DJANGO_REDIS_HOST=redis
+    env_file:
+      - .env.dev
+  # All required env vars (DB, Redis, DEBUG, etc.) are provided via .env.dev
 
 volumes:
-  postgres_data:
+  postgres_data_dev:
