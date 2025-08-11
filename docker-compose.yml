@@ -1,0 +1,39 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: motomundo
+      POSTGRES_USER: motomundo
+      POSTGRES_PASSWORD: motomundo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DEBUG=1
+      - DJANGO_DB_HOST=db
+      - DJANGO_DB_NAME=motomundo
+      - DJANGO_DB_USER=motomundo
+      - DJANGO_DB_PASSWORD=motomundo
+      - DJANGO_REDIS_HOST=redis
+
+volumes:
+  postgres_data:
