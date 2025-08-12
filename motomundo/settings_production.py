@@ -7,7 +7,16 @@ DEBUG = False
 
 SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
 
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if os.environ.get('DJANGO_ALLOWED_HOSTS') else ['localhost']
+_raw_hosts = (
+    os.environ.get('DJANGO_ALLOWED_HOSTS') or
+    os.environ.get('ALLOWED_HOSTS') or
+    os.environ.get('RENDER_EXTERNAL_HOSTNAME') or
+    ''
+)
+if _raw_hosts:
+    ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(',') if h.strip()]
+else:
+    ALLOWED_HOSTS = ['localhost']
 
 # Security headers / SSL (adjust when behind a proxy / load balancer)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

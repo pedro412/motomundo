@@ -24,7 +24,14 @@ fi
 
 if [ -n "$DB_WAIT_HOST" ]; then
   echo "Waiting for Postgres $DB_WAIT_HOST:$DB_WAIT_PORT..."
-  until python -c "import socket; s=socket.create_connection(('${DB_WAIT_HOST}', int('${DB_WAIT_PORT}'))); s.close()" 2>/dev/null; do
+  ATTEMPTS=0
+  MAX_ATTEMPTS="${DB_WAIT_MAX_ATTEMPTS:-30}"
+  until python -c "import socket; s=socket.create_connection(('${DB_WAIT_HOST}', int('${DB_WAIT_PORT}')), timeout=2); s.close()" 2>/dev/null; do
+    ATTEMPTS=$((ATTEMPTS+1))
+    if [ "$ATTEMPTS" -ge "$MAX_ATTEMPTS" ]; then
+      echo "Database not reachable after $MAX_ATTEMPTS attempts. Continuing (Django will error if still unreachable)." >&2
+      break
+    fi
     sleep 1
   done
 fi
