@@ -7,16 +7,20 @@ DEBUG = False
 
 SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
 
-_raw_hosts = (
-    os.environ.get('DJANGO_ALLOWED_HOSTS') or
-    os.environ.get('ALLOWED_HOSTS') or
-    os.environ.get('RENDER_EXTERNAL_HOSTNAME') or
-    ''
-)
-if _raw_hosts:
-    ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(',') if h.strip()]
-else:
-    ALLOWED_HOSTS = ['localhost']
+base_hosts = []
+for var in ('DJANGO_ALLOWED_HOSTS', 'ALLOWED_HOSTS'):
+    val = os.environ.get(var)
+    if val:
+        base_hosts.extend([h.strip() for h in val.split(',') if h.strip()])
+ALLOWED_HOSTS = base_hosts or ['localhost']
+
+# Always append Render-provided external hostname if present (per Render docs)
+render_external = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if render_external and render_external not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(render_external)
+
+# TEMP DEBUG (remove after verification)
+print("[startup] ALLOWED_HOSTS:", ALLOWED_HOSTS)
 
 # Security headers / SSL (adjust when behind a proxy / load balancer)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
