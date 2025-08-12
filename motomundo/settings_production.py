@@ -1,5 +1,6 @@
 import os
 from .settings import *  # noqa
+from urllib.parse import urlparse
 
 # Production overrides
 DEBUG = False
@@ -28,23 +29,52 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = ['rest_framework.renderers.JSONRenderer']  # type: ignore
 
 # Database (expect env vars prefixed POSTGRES_*)
-DATABASES = {
-    'default': {
+def _build_db_config():
+    # Priority 1: Explicit POSTGRES_* variables
+    name = os.environ.get('POSTGRES_DB') or os.environ.get('DJANGO_DB_NAME')
+    user = os.environ.get('POSTGRES_USER') or os.environ.get('DJANGO_DB_USER')
+    password = os.environ.get('POSTGRES_PASSWORD') or os.environ.get('DJANGO_DB_PASSWORD')
+    host = os.environ.get('POSTGRES_HOST') or os.environ.get('DJANGO_DB_HOST')
+    port = os.environ.get('POSTGRES_PORT') or os.environ.get('DJANGO_DB_PORT') or '5432'
+
+    # Priority 2: DATABASE_URL (Render / many platforms)
+    if (not name or not user) and 'DATABASE_URL' in os.environ:
+        url = urlparse(os.environ['DATABASE_URL'])
+        # Example: postgres://user:pass@host:port/dbname
+        if url.scheme.startswith('postgres'):
+            name = url.path.lstrip('/') or name
+            user = url.username or user
+            password = url.password or password
+            host = url.hostname or host
+            port = str(url.port or port)
+
+    missing = [k for k, v in [('DB name', name), ('DB user', user), ('DB password', password)] if not v]
+    if missing:
+        raise RuntimeError(
+            f"Database configuration incomplete. Missing: {', '.join(missing)}. "
+            "Provide POSTGRES_* vars or a DATABASE_URL."
+        )
+
+    return {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ['POSTGRES_DB'],
-        'USER': os.environ['POSTGRES_USER'],
-        'PASSWORD': os.environ['POSTGRES_PASSWORD'],
-        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
-        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        'NAME': name,
+        'USER': user,
+        'PASSWORD': password,
+        'HOST': host or 'localhost',
+        'PORT': port,
     }
+
+DATABASES = {
+    'default': _build_db_config()
 }
 
 # Redis cache optional
-if os.environ.get('REDIS_HOST'):
+redis_host = os.environ.get('REDIS_HOST') or os.environ.get('DJANGO_REDIS_HOST')
+if redis_host:
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-            'LOCATION': f"redis://{os.environ['REDIS_HOST']}:6379/1",
+            'LOCATION': f"redis://{redis_host}:6379/1",
         }
     }
 

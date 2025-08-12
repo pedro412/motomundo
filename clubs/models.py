@@ -38,7 +38,9 @@ class Chapter(models.Model):
 class Member(models.Model):
     ROLE_CHOICES = [
         ('president', 'President'),
+        ('vice_president', 'Vice President'),
         ('secretary', 'Secretary'),
+        ('treasurer', 'Treasurer'),
         ('rider', 'Rider'),
         # Add more roles as needed
     ]
