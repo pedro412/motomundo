@@ -11,10 +11,15 @@ COPY . .
 ARG DJANGO_SETTINGS_MODULE=motomundo.settings
 ENV DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
 
+# Copy and make startup script executable
+COPY scripts/railway-start /app/scripts/railway-start
+RUN chmod +x /app/scripts/railway-start
+
 # Ensure entrypoint script executable
 RUN chmod +x /app/entrypoint.sh || true
 
 RUN python manage.py collectstatic --noinput || true
 
 EXPOSE 8000
-CMD ["gunicorn", "motomundo.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
+# Use the startup script that properly handles $PORT
+CMD ["/app/scripts/railway-start"]
