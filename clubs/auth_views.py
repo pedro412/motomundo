@@ -270,7 +270,7 @@ class JWTRegisterView(generics.CreateAPIView):
         
         permissions_data = {
             'is_club_admin': is_club_admin,
-            'is_chapter_manager': is_chapter_manager,
+            'is_chapter_admin': is_chapter_admin,
             'clubs': [],
             'chapters': []
         }

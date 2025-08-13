@@ -26,6 +26,7 @@ class ChapterSerializer(serializers.ModelSerializer):
 
 class MemberSerializer(serializers.ModelSerializer):
     chapter = serializers.PrimaryKeyRelatedField(queryset=Chapter.objects.all())
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False, allow_null=True)
 
     class Meta:
         model = Member
@@ -33,7 +34,7 @@ class MemberSerializer(serializers.ModelSerializer):
             'id', 'chapter', 'first_name', 'last_name', 'nickname', 'date_of_birth',
             'role', 'joined_at', 'user', 'is_active', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['user', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
 
 
 class ClubAdminSerializer(serializers.ModelSerializer):
