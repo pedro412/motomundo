@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ nombre_club }} - Invitación al Club de Motociclistas</title>
+    <style>
+        body { 
+            font-family: 'Arial', sans-serif; 
+            line-height: 1.6; 
+            color: #2c3e50; 
+            background: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header { 
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white; 
+            padding: 30px 20px; 
+            text-align: center; 
+        }
+        .header h1 { 
+            margin: 0; 
+            font-size: 24px; 
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .content { 
+            padding: 40px 30px; 
+        }
+        .mensaje-personal {
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 20px;
+            margin: 20px 0;
+            font-style: italic;
+            border-radius: 0 6px 6px 0;
+        }
+        .boton { 
+            display: inline-block; 
+            padding: 15px 30px; 
+            margin: 15px 10px; 
+            text-decoration: none; 
+            border-radius: 6px; 
+            font-weight: bold; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        .aceptar { 
+            background: #27ae60; 
+            color: white; 
+            box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
+        }
+        .aceptar:hover { 
+            background: #219a52; 
+            transform: translateY(-2px);
+            text-decoration: none;
+            color: white;
+        }
+        .rechazar { 
+            background: #e74c3c; 
+            color: white; 
+            box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+        }
+        .rechazar:hover { 
+            background: #c0392b; 
+            transform: translateY(-2px);
+            text-decoration: none;
+            color: white;
+        }
+        .footer { 
+            background: #34495e;
+            text-align: center; 
+            padding: 20px; 
+            color: #bdc3c7; 
+            font-size: 14px; 
+        }
+        .info-club {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .info-club h3 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .info-club p {
+            margin: 8px 0;
+        }
+        .botones-container {
+            text-align: center; 
+            margin: 40px 0;
+        }
+        @media (max-width: 600px) {
+            .boton {
+                display: block;
+                margin: 10px 0;
+            }
+            .content {
+                padding: 20px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏍️ {{ nombre_club }}</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px;">{{ nombre_chapter }}</p>
+        </div>
+        
+        <div class="content">
+            <h2 style="color: #2c3e50;">Hola {{ nombre_prospecto }},</h2>
+            
+            <p style="font-size: 16px;">
+                <strong>{{ nombre_padrino }}</strong> de <strong>{{ nombre_club }}</strong> te ha invitado 
+                a unirte a nuestro club de motociclistas como <strong>{{ rol }}</strong>.
+            </p>
+
+            {% if mensaje_personal %}
+            <div class="mensaje-personal">
+                <strong>Mensaje personal de {{ nombre_padrino }}:</strong><br>
+                "{{ mensaje_personal }}"
+            </div>
+            {% endif %}
+            
+            <div class="info-club">
+                <h3>🏍️ Información del Club</h3>
+                <p><strong>Club:</strong> {{ nombre_club }}</p>
+                <p><strong>Chapter:</strong> {{ nombre_chapter }}</p>
+                {% if ubicacion_chapter %}
+                <p><strong>Ubicación:</strong> {{ ubicacion_chapter }}</p>
+                {% endif %}
+                <p><strong>Tu Rol:</strong> {{ rol }}</p>
+                <p><strong>Padrino:</strong> {{ nombre_padrino }}</p>
+            </div>
+            
+            <p>
+                Únete a nuestra hermandad de motociclistas y forma parte de una comunidad que comparte 
+                tu pasión por las motos, la libertad y la carretera abierta.
+            </p>
+            
+            <div class="botones-container">
+                <a href="{{ url_aceptar }}" class="boton aceptar">🤝 Aceptar Invitación</a>
+                <a href="{{ url_rechazar }}" class="boton rechazar">❌ Rechazar Respetuosamente</a>
+            </div>
+            
+            <p style="color: #7f8c8d; font-size: 14px; text-align: center; margin-top: 30px;">
+                <strong>⏰ Esta invitación expira el {{ fecha_expira }}.</strong><br>
+                Por favor responde cuando tengas oportunidad.
+            </p>
+            
+            <p style="margin-top: 30px; text-align: center;">
+                <em>Rueda seguro, rueda libre.</em><br>
+                <strong>La Familia {{ nombre_club }}</strong>
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>🏍️ {{ nombre_club }} - {{ nombre_chapter }}</p>
+            <p style="font-size: 12px; margin: 5px 0 0 0;">
+                Esta es una invitación oficial para unirte a nuestro club de motociclistas.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

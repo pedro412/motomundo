@@ -223,3 +223,52 @@ def get_user_manageable_members(user):
     chapter_members = Member.objects.filter(chapter__admins__user=user)
     
     return (club_members | chapter_members).distinct()
+
+
+class IsClubAdminOrChapterAdmin(permissions.BasePermission):
+    """
+    Permission that allows only club admins or chapter admins to perform actions.
+    Useful for email invitations and other administrative functions.
+    """
+    
+    def has_permission(self, request, view):
+        # Check if user is authenticated first
+        if not request.user.is_authenticated:
+            return False
+        
+        # Superusers have access
+        if request.user.is_superuser:
+            return True
+        
+        # Check if user is club admin or chapter admin
+        is_club_admin = ClubAdmin.objects.filter(user=request.user).exists()
+        is_chapter_admin = ChapterAdmin.objects.filter(user=request.user).exists()
+        
+        return is_club_admin or is_chapter_admin
+    
+    def has_object_permission(self, request, view, obj):
+        # Superusers have full access
+        if request.user.is_superuser:
+            return True
+        
+        # For club-related objects
+        if hasattr(obj, 'club'):
+            return user_can_manage_club(request.user, obj.club)
+        
+        # For chapter-related objects
+        if hasattr(obj, 'chapter'):
+            return user_can_manage_chapter(request.user, obj.chapter)
+        
+        # For direct club objects
+        if isinstance(obj, Club):
+            return user_can_manage_club(request.user, obj)
+        
+        # For direct chapter objects
+        if isinstance(obj, Chapter):
+            return user_can_manage_chapter(request.user, obj)
+        
+        # Default to basic permission check
+        is_club_admin = ClubAdmin.objects.filter(user=request.user).exists()
+        is_chapter_admin = ChapterAdmin.objects.filter(user=request.user).exists()
+        
+        return is_club_admin or is_chapter_admin

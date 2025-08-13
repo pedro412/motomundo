@@ -1,6 +1,13 @@
 import os
 from pathlib import Path
 
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+import os
+from pathlib import Path
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'replace-this-secret-key')
@@ -21,6 +28,7 @@ INSTALLED_APPS = [
     'django_filters',
     'clubs',
     'achievements',
+    'emails',
 ]
 
 MIDDLEWARE = [
@@ -148,3 +156,15 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
     'TOKEN_OBTAIN_SERIALIZER': 'clubs.auth_serializers.CustomTokenObtainPairSerializer',
 }
+
+# Email Configuration for Railway + SendGrid
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.sendgrid.net'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'apikey'  # SendGrid requires literal "apikey"
+EMAIL_HOST_PASSWORD = os.environ.get('SENDGRID_API_KEY', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@motomundo.com')
+
+# Frontend URL for invitation links
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')

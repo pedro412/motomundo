@@ -1,0 +1,28 @@
+Hola {{ nombre_prospecto }},
+
+{{ nombre_padrino }} te ha invitado a unirte a {{ nombre_club }} - {{ nombre_chapter }} como {{ rol }}.
+
+{% if mensaje_personal %}
+Mensaje de {{ nombre_padrino }}:
+"{{ mensaje_personal }}"
+
+{% endif %}
+Información del Club:
+- Club: {{ nombre_club }}
+- Chapter: {{ nombre_chapter }}
+- Tu rol: {{ rol }}
+- Padrino: {{ nombre_padrino }}
+
+Para ACEPTAR esta invitación:
+{{ url_aceptar }}
+
+Para RECHAZAR esta invitación:
+{{ url_rechazar }}
+
+Esta invitación expira el {{ fecha_expira }}.
+
+Únete a nuestra hermandad de motociclistas y forma parte de una comunidad que comparte tu pasión por las motos, la libertad y la carretera.
+
+Rueda seguro, rueda libre.
+
+La Familia {{ nombre_club }}
