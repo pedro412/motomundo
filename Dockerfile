@@ -21,6 +21,6 @@ RUN chmod +x /app/entrypoint.sh || true
 RUN python manage.py collectstatic --noinput || true
 
 EXPOSE 8000
-# Run gunicorn via bash so $PORT is expanded at runtime (Railway injects PORT)
-# NOTE: Using Django WSGI module (motomundo.wsgi:application) rather than Flask-style run:app
-CMD ["/bin/bash", "-c", "gunicorn motomundo.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2"]
+
+# Sanitize PORT before passing to gunicorn
+CMD ["/bin/bash", "-c", "CLEAN_PORT=$(echo \"${PORT:-8000}\" | tr -cd '0-9'); [ -z \"$CLEAN_PORT\" ] && CLEAN_PORT=8000; gunicorn motomundo.wsgi:application --bind 0.0.0.0:$CLEAN_PORT --workers 2"]

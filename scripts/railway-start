@@ -1,4 +1,9 @@
 #!/bin/bash
+
+# Add this to your startup script before the port parsing
+echo "🔍 Raw environment variables:"
+printenv | grep -i port || true
+
 set -euo pipefail
 
 echo "🚀 Starting MotoMundo on Railway..."
