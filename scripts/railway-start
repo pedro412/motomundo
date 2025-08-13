@@ -1,7 +1,55 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 echo "🚀 Starting MotoMundo on Railway..."
-echo "🔧 PORT: ${PORT:-8000}"
 
-exec gunicorn motomundo.wsgi:application --bind 0.0.0.0:$PORT --workers 2
+# Show a subset of environment for debugging (mask obvious secrets)
+echo "� Environment snapshot (filtered):"
+env | grep -E 'PORT=|RAILWAY_|DJANGO_SETTINGS_MODULE' | sed 's/SECRET_KEY=.*/SECRET_KEY=***MASKED***/'
+
+# If user defined PORT in variables, Railway will not inject its own. Otherwise Railway injects one.
+RAW_PORT="${PORT:-}"
+if [ -z "${RAW_PORT}" ]; then
+	echo "ℹ️ PORT not set by environment. Falling back to Railway default injection attempt or 8000.";
+	PORT=8000
+else
+	# Trim and validate numeric
+	PORT="$(echo "$RAW_PORT" | tr -cd '0-9')"
+fi
+
+if ! [[ "$PORT" =~ ^[0-9]+$ ]]; then
+	echo "❌ PORT value '$RAW_PORT' is not purely numeric after sanitation -> '$PORT'" >&2
+	echo "🔁 Falling back to 8000"
+	PORT=8000
+fi
+
+if [ "$PORT" -lt 1 ] || [ "$PORT" -gt 65535 ]; then
+	echo "❌ PORT $PORT out of valid TCP range. Using 8000." >&2
+	PORT=8000
+fi
+
+echo "🔧 Final bind port: $PORT"
+
+GUNICORN_CMD="gunicorn"
+if ! command -v gunicorn >/dev/null 2>&1; then
+	if [ -f "/app/.venv/bin/gunicorn" ]; then
+		GUNICORN_CMD="/app/.venv/bin/gunicorn"
+	elif [ -f ".venv/bin/gunicorn" ]; then
+		GUNICORN_CMD=".venv/bin/gunicorn"
+	else
+		echo "❌ gunicorn not found in PATH" >&2
+		exit 1
+	fi
+fi
+echo "🎯 Using gunicorn executable: $(which $GUNICORN_CMD || echo $GUNICORN_CMD)"
+
+set -x
+exec $GUNICORN_CMD motomundo.wsgi:application \
+	--bind 0.0.0.0:"$PORT" \
+	--workers 2 \
+	--timeout 120 \
+	--keep-alive 5 \
+	--max-requests 1000 \
+	--preload \
+	--access-logfile - \
+	--error-logfile -
