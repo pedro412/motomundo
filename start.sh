@@ -28,4 +28,6 @@ fi
 
 # Start the application
 echo "🚀 Starting MotoMundo server..."
-exec gunicorn motomundo.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2
+PORT=${PORT:-8000}
+echo "📡 Using port: $PORT"
+exec gunicorn motomundo.wsgi:application --bind 0.0.0.0:$PORT --workers 2
