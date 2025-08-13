@@ -7,7 +7,7 @@ Run with: python manage.py shell < test_permissions.py
 """
 
 from django.contrib.auth.models import User
-from clubs.models import Club, Chapter, Member, ClubAdmin, ChapterManager
+from clubs.models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
 from clubs.permissions import (
     get_user_manageable_clubs,
     get_user_manageable_chapters, 
@@ -32,7 +32,7 @@ def test_permission_system():
     print(f"Total Chapters: {chapters.count()}")
     print(f"Total Members: {Member.objects.count()}")
     print(f"Total Club Admins: {ClubAdmin.objects.count()}")
-    print(f"Total Chapter Managers: {ChapterManager.objects.count()}\n")
+    print(f"Total Chapter Admins: {ChapterAdmin.objects.count()}\n")
     
     # Test each user's permissions
     for user in users:
@@ -41,16 +41,16 @@ def test_permission_system():
         
         # Show roles
         club_admin_roles = ClubAdmin.objects.filter(user=user)
-        chapter_manager_roles = ChapterManager.objects.filter(user=user)
+        chapter_admin_roles = ChapterAdmin.objects.filter(user=user)
         
         if club_admin_roles.exists():
             print("Club Admin for:")
             for role in club_admin_roles:
                 print(f"  - {role.club.name}")
         
-        if chapter_manager_roles.exists():
-            print("Chapter Manager for:")
-            for role in chapter_manager_roles:
+        if chapter_admin_roles.exists():
+            print("Chapter Admin for:")
+            for role in chapter_admin_roles:
                 print(f"  - {role.chapter.name} ({role.chapter.club.name})")
         
         # Test permissions

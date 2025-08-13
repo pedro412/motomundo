@@ -121,42 +121,108 @@ def logout_view(request):
 @permission_classes([permissions.IsAuthenticated])
 def user_permissions_view(request):
     """
-    API endpoint to get current user's permissions and roles
+    API endpoint to get current user's permissions and roles with enhanced information
     """
     from .permissions import get_user_manageable_clubs, get_user_manageable_chapters
-    from .models import ClubAdmin, ChapterManager
+    from .models import ClubAdmin, ChapterAdmin, Chapter, Member
     
     user = request.user
     
-    # Get user roles
-    club_admin_roles = ClubAdmin.objects.filter(user=user).select_related('club')
-    chapter_manager_roles = ChapterManager.objects.filter(user=user).select_related('chapter', 'chapter__club')
+    # Get club admin assignments
+    club_admins = ClubAdmin.objects.filter(user=user).select_related('club', 'created_by')
     
-    # Get manageable data counts
-    manageable_clubs = get_user_manageable_clubs(user)
-    manageable_chapters = get_user_manageable_chapters(user)
+    # Get chapter admin assignments
+    chapter_admins = ChapterAdmin.objects.filter(user=user).select_related('chapter', 'chapter__club', 'created_by')
+    
+    # Get accessible clubs (for club admins)
+    accessible_clubs = [
+        {
+            'id': ca.club.id,
+            'name': ca.club.name,
+            'role': 'admin',
+            'assigned_at': ca.created_at,
+            'assigned_by': ca.created_by.username if ca.created_by else None
+        }
+        for ca in club_admins
+    ]
+    
+    # Get accessible chapters (for chapter managers and club admins)
+    accessible_chapters = []
+    
+    # Add chapters from chapter admin role
+    for cm in chapter_admins:
+        accessible_chapters.append({
+            'id': cm.chapter.id,
+            'name': cm.chapter.name,
+            'club': {
+                'id': cm.chapter.club.id,
+                'name': cm.chapter.club.name
+            },
+            'role': 'admin',
+            'assigned_at': cm.created_at,
+            'assigned_by': cm.created_by.username if cm.created_by else None
+        })
+    
+    # Add chapters from club admin role
+    for ca in club_admins:
+        club_chapters = Chapter.objects.filter(club=ca.club)
+        for chapter in club_chapters:
+            # Check if already added as admin
+            existing = next((ch for ch in accessible_chapters if ch['id'] == chapter.id), None)
+            if existing:
+                # Upgrade to club admin role if user is both chapter admin and club admin
+                existing['role'] = 'club_admin'
+                existing['assigned_at'] = ca.created_at
+                existing['assigned_by'] = ca.created_by.username if ca.created_by else None
+            else:
+                accessible_chapters.append({
+                    'id': chapter.id,
+                    'name': chapter.name,
+                    'club': {
+                        'id': chapter.club.id,
+                        'name': chapter.club.name
+                    },
+                    'role': 'club_admin',
+                    'assigned_at': ca.created_at,
+                    'assigned_by': ca.created_by.username if ca.created_by else None
+                })
+    
+    # Count statistics
+    total_clubs = len(accessible_clubs)
+    total_chapters = len(accessible_chapters)
+    
+    # Count members user can manage
+    manageable_members_count = 0
+    if user.is_superuser:
+        manageable_members_count = Member.objects.count()
+    elif club_admins.exists():
+        # Club admins can manage all members in their clubs
+        club_ids = [ca.club.id for ca in club_admins]
+        manageable_members_count = Member.objects.filter(chapter__club__id__in=club_ids).count()
+    elif chapter_admins.exists():
+        # Chapter admins can only manage members in their chapters
+        chapter_ids = [cm.chapter.id for cm in chapter_admins]
+        manageable_members_count = Member.objects.filter(chapter__id__in=chapter_ids).count()
     
     return Response({
         'user': UserSerializer(user).data,
-        'is_superuser': user.is_superuser,
         'roles': {
-            'club_admin': [
-                {
-                    'club_id': role.club.id,
-                    'club_name': role.club.name
-                } for role in club_admin_roles
-            ],
-            'chapter_manager': [
-                {
-                    'chapter_id': role.chapter.id,
-                    'chapter_name': role.chapter.name,
-                    'club_name': role.chapter.club.name
-                } for role in chapter_manager_roles
-            ]
+            'is_superuser': user.is_superuser,
+            'is_club_admin': club_admins.exists(),
+            'is_chapter_admin': chapter_admins.exists(),
         },
         'permissions': {
-            'manageable_clubs_count': manageable_clubs.count(),
-            'manageable_chapters_count': manageable_chapters.count()
+            'can_manage_all_clubs': user.is_superuser,
+            'can_create_clubs': user.is_superuser,
+            'can_assign_club_admins': user.is_superuser or club_admins.exists(),
+            'can_assign_chapter_managers': user.is_superuser or club_admins.exists(),
+        },
+        'accessible_clubs': accessible_clubs,
+        'accessible_chapters': accessible_chapters,
+        'statistics': {
+            'clubs_count': total_clubs,
+            'chapters_count': total_chapters,
+            'manageable_members_count': manageable_members_count,
         }
     })
 
@@ -188,7 +254,7 @@ class JWTRegisterView(generics.CreateAPIView):
         access = refresh.access_token
         
         # Get the same data as the CustomTokenObtainPairSerializer would return
-        from .models import ClubAdmin, ChapterManager
+        from .models import ClubAdmin, ChapterAdmin
         
         user_data = {
             'id': user.id,
@@ -200,7 +266,7 @@ class JWTRegisterView(generics.CreateAPIView):
         
         # Add permission information
         is_club_admin = ClubAdmin.objects.filter(user=user).exists()
-        is_chapter_manager = ChapterManager.objects.filter(user=user).exists()
+        is_chapter_admin = ChapterAdmin.objects.filter(user=user).exists()
         
         permissions_data = {
             'is_club_admin': is_club_admin,

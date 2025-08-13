@@ -1,6 +1,7 @@
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth.models import User
-from .models import Club, Chapter, Member, ClubAdmin, ChapterManager
+from .models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
 
 
 class ClubSerializer(serializers.ModelSerializer):
@@ -55,19 +56,34 @@ class ClubAdminSerializer(serializers.ModelSerializer):
     def get_club_display(self, obj):
         return obj.club.name
 
+    def validate(self, data):
+        user = data.get('user')
+        club = data.get('club')
+        
+        # Check if assignment already exists
+        if ClubAdmin.objects.filter(user=user, club=club).exists():
+            raise serializers.ValidationError("This user is already a club admin for this club.")
+        
+        # Prevent self-assignment (except for superusers)
+        request = self.context.get('request')
+        if request and not request.user.is_superuser and user == request.user:
+            raise serializers.ValidationError("You cannot assign yourself as a club admin.")
+        
+        return data
+
     def create(self, validated_data):
         validated_data['created_by'] = self.context['request'].user
         return super().create(validated_data)
 
 
-class ChapterManagerSerializer(serializers.ModelSerializer):
+class ChapterAdminSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     chapter = serializers.PrimaryKeyRelatedField(queryset=Chapter.objects.all())
     user_display = serializers.SerializerMethodField()
     chapter_display = serializers.SerializerMethodField()
 
     class Meta:
-        model = ChapterManager
+        model = ChapterAdmin
         fields = [
             'id', 'user', 'chapter', 'user_display', 'chapter_display',
             'created_at', 'created_by'
@@ -79,6 +95,27 @@ class ChapterManagerSerializer(serializers.ModelSerializer):
 
     def get_chapter_display(self, obj):
         return f"{obj.chapter.name} ({obj.chapter.club.name})"
+
+    def validate(self, data):
+        user = data.get('user')
+        chapter = data.get('chapter')
+        
+        # Check if assignment already exists
+        if ChapterAdmin.objects.filter(user=user, chapter=chapter).exists():
+            raise serializers.ValidationError("This user is already a chapter admin for this chapter.")
+        
+        # Prevent self-assignment (except for superusers)
+        request = self.context.get('request')
+        if request and not request.user.is_superuser and user == request.user:
+            raise serializers.ValidationError("You cannot assign yourself as a chapter admin.")
+        
+        # Ensure club admins can only assign chapter admins to chapters in their clubs
+        if request and not request.user.is_superuser:
+            user_clubs = Club.objects.filter(admins__user=request.user)
+            if chapter and chapter.club not in user_clubs:
+                raise PermissionDenied("You can only assign chapter admins to chapters in clubs you manage.")
+        
+        return data
 
     def create(self, validated_data):
         validated_data['created_by'] = self.context['request'].user

@@ -3,7 +3,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from .models import ClubAdmin, ChapterManager
+from .models import ClubAdmin, ChapterAdmin
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -169,11 +169,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         
         # Add permission information
         is_club_admin = ClubAdmin.objects.filter(user=self.user).exists()
-        is_chapter_manager = ChapterManager.objects.filter(user=self.user).exists()
+        is_chapter_admin = ChapterAdmin.objects.filter(user=self.user).exists()
         
         data['permissions'] = {
             'is_club_admin': is_club_admin,
-            'is_chapter_manager': is_chapter_manager,
+            'is_chapter_admin': is_chapter_admin,
             'clubs': [],
             'chapters': []
         }
@@ -185,14 +185,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 {'id': ca.club.id, 'name': ca.club.name} for ca in club_admins
             ]
         
-        if is_chapter_manager:
-            chapter_managers = ChapterManager.objects.filter(user=self.user).select_related('chapter', 'chapter__club')
+        if is_chapter_admin:
+            chapter_admins = ChapterAdmin.objects.filter(user=self.user).select_related('chapter', 'chapter__club')
             data['permissions']['chapters'] = [
                 {
                     'id': cm.chapter.id, 
                     'name': cm.chapter.name,
                     'club': {'id': cm.chapter.club.id, 'name': cm.chapter.club.name}
-                } for cm in chapter_managers
+                } for cm in chapter_admins
             ]
         
         return data

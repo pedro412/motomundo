@@ -52,9 +52,10 @@ class Member(models.Model):
     date_of_birth = models.DateField(null=True, blank=True)
     role = models.CharField(max_length=30, choices=ROLE_CHOICES)
     joined_at = models.DateField(null=True, blank=True)
-    user = models.OneToOneField(
+    user = models.ForeignKey(
         to='auth.User', null=True, blank=True, on_delete=models.SET_NULL,
-        help_text="Link to a registered user, if applicable."
+        help_text="Link to a registered user, if applicable.",
+        related_name='memberships'
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -66,6 +67,11 @@ class Member(models.Model):
             models.UniqueConstraint(
                 Lower('first_name'), Lower('last_name'), 'chapter',
                 name='uq_member_chapter_fullname_ci'
+            ),
+            models.UniqueConstraint(
+                fields=['user', 'chapter'],
+                name='uq_user_chapter_membership',
+                condition=models.Q(user__isnull=False)
             )
         ]
 
@@ -120,16 +126,17 @@ class ClubAdmin(models.Model):
         return f"{self.user.get_full_name() or self.user.username} - Admin of {self.club.name}"
 
 
-class ChapterManager(models.Model):
+class ChapterAdmin(models.Model):
     """
     Represents a user who can manage members of a specific chapter
+    Users can have multiple ChapterAdmin roles across different clubs
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chapter_manager_roles')
-    chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='managers')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chapter_admin_roles')
+    chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='admins')
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='created_chapter_managers'
+        related_name='created_chapter_admins'
     )
 
     class Meta:
@@ -137,4 +144,22 @@ class ChapterManager(models.Model):
         ordering = ['chapter__club__name', 'chapter__name', 'user__username']
 
     def __str__(self):
-        return f"{self.user.get_full_name() or self.user.username} - Manager of {self.chapter.name}"
+        return f"{self.user.get_full_name() or self.user.username} - Admin of {self.chapter.name}"
+
+
+class UserClubContext(models.Model):
+    """
+    Tracks the user's currently active club context for performing actions
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='active_club_context')
+    active_club = models.ForeignKey(Club, on_delete=models.CASCADE, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "User Club Context"
+        verbose_name_plural = "User Club Contexts"
+
+    def __str__(self):
+        if self.active_club:
+            return f"{self.user.username} - Active: {self.active_club.name}"
+        return f"{self.user.username} - No active club"

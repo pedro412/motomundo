@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from rest_framework.test import APITestCase
 from rest_framework import status
-from clubs.models import Club, Chapter, Member, ClubAdmin, ChapterManager
+from clubs.models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
 from clubs.permissions import (
     get_user_manageable_clubs,
     get_user_manageable_chapters,
@@ -114,13 +114,13 @@ class PermissionModelTests(TestCase):
 
     def test_chapter_manager_creation(self):
         """Test creating chapter manager"""
-        chapter_manager = ChapterManager.objects.create(
+        chapter_admin = ChapterAdmin.objects.create(
             user=self.chapter_manager_user,
             chapter=self.sf_chapter,
             created_by=self.superuser
         )
-        self.assertEqual(chapter_manager.user, self.chapter_manager_user)
-        self.assertEqual(chapter_manager.chapter, self.sf_chapter)
+        self.assertEqual(chapter_admin.user, self.chapter_manager_user)
+        self.assertEqual(chapter_admin.chapter, self.sf_chapter)
 
 
 class PermissionLogicTests(TestCase):
@@ -187,7 +187,7 @@ class PermissionLogicTests(TestCase):
             user=self.club_admin_user,
             club=self.harley_club
         )
-        self.chapter_manager = ChapterManager.objects.create(
+        self.chapter_admin = ChapterAdmin.objects.create(
             user=self.chapter_manager_user,
             chapter=self.sf_chapter
         )
@@ -397,9 +397,9 @@ class PermissionAPITests(APITestCase):
         response = self.client.get('/api/club-admins/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
-        # Club admin should access chapter-managers endpoint
+        # Club admin should access chapter-admins endpoint
         self.client.force_authenticate(user=self.harley_admin)
-        response = self.client.get('/api/chapter-managers/')
+        response = self.client.get('/api/chapter-admins/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
@@ -581,7 +581,7 @@ class AuthenticationTests(APITestCase):
         self.assertIn('user', response.data)
         self.assertIn('roles', response.data)
         self.assertIn('permissions', response.data)
-        self.assertEqual(response.data['is_superuser'], False)
+        self.assertEqual(response.data['roles']['is_superuser'], False)
 
     def test_change_password(self):
         """Test password change endpoint"""

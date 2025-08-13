@@ -285,7 +285,7 @@
   }
 },
 {
-  "model": "clubs.chaptermanager",
+  "model": "clubs.chapteradmin",
   "pk": 1,
   "fields": {
     "user": 3,

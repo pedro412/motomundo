@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import Club, Chapter, Member, ClubAdmin, ChapterManager
-from .serializers import ClubSerializer, ChapterSerializer, MemberSerializer, ClubAdminSerializer, ChapterManagerSerializer
+from .models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
+from .serializers import ClubSerializer, ChapterSerializer, MemberSerializer, ClubAdminSerializer, ChapterAdminSerializer
 from .permissions import (
     IsClubAdminOrReadOnly, 
     CanCreateChapter, 
@@ -64,7 +64,7 @@ class ChapterViewSet(viewsets.ModelViewSet):
 class MemberViewSet(viewsets.ModelViewSet):
     queryset = Member.objects.all()  # Default queryset, will be filtered in get_queryset
     serializer_class = MemberSerializer
-    permission_classes = [IsClubAdminOrReadOnly, CanCreateMember]
+    permission_classes = [CanCreateMember]  # Use only CanCreateMember which handles both club admins and chapter managers
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['chapter', 'role', 'is_active']
     search_fields = ['first_name', 'last_name', 'nickname', 'chapter__name', 'chapter__club__name']
@@ -83,6 +83,11 @@ class MemberViewSet(viewsets.ModelViewSet):
 
 
 class ClubAdminViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing club admin assignments.
+    - Superusers: Can assign club admins to any club
+    - Club Admins: Can assign other club admins to their own clubs
+    """
     queryset = ClubAdmin.objects.all()  # Default queryset, will be filtered in get_queryset
     serializer_class = ClubAdminSerializer
     permission_classes = [IsAuthenticated]
@@ -93,50 +98,70 @@ class ClubAdminViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Only superusers can manage club admins
+        Superusers can see all club admin assignments.
+        Club admins can see assignments for their clubs only.
         """
-        if not (self.request.user.is_authenticated and self.request.user.is_superuser):
+        if not self.request.user.is_authenticated:
             return ClubAdmin.objects.none()
         
-        return ClubAdmin.objects.select_related('user', 'club', 'created_by').order_by('club__name', 'user__username')
+        if self.request.user.is_superuser:
+            return ClubAdmin.objects.select_related('user', 'club', 'created_by').order_by('club__name', 'user__username')
+        elif ClubAdmin.objects.filter(user=self.request.user).exists():
+            # Club admins can see assignments for their clubs
+            user_clubs = Club.objects.filter(admins__user=self.request.user)
+            return ClubAdmin.objects.select_related('user', 'club', 'created_by').filter(
+                club__in=user_clubs
+            ).order_by('club__name', 'user__username')
+        else:
+            # Regular users can't see club admin assignments
+            return ClubAdmin.objects.none()
+    
+    def perform_create(self, serializer):
+        """
+        Check if user can create club admin for the specified club
+        """
+        club = serializer.validated_data['club']
+        if not self.request.user.is_superuser:
+            # Club admins can only assign to their own clubs
+            user_clubs = Club.objects.filter(admins__user=self.request.user)
+            if club not in user_clubs:
+                raise PermissionDenied("You can only assign club admins to clubs you manage.")
+        
+        serializer.save(created_by=self.request.user)
 
 
-class ChapterManagerViewSet(viewsets.ModelViewSet):
-    queryset = ChapterManager.objects.all()  # Default queryset, will be filtered in get_queryset
-    serializer_class = ChapterManagerSerializer
-    permission_classes = [IsAuthenticated]
+class ChapterAdminViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing chapter admins
+    """
+    queryset = ChapterAdmin.objects.all()  # Default queryset, will be filtered in get_queryset
+    serializer_class = ChapterAdminSerializer
+    permission_classes = [IsClubAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['chapter', 'chapter__club', 'user']
-    search_fields = ['user__username', 'user__first_name', 'user__last_name', 'chapter__name', 'chapter__club__name']
-    ordering_fields = ['created_at', 'chapter__club__name', 'chapter__name', 'user__username']
+    filterset_fields = ['chapter', 'chapter__club']
+    search_fields = ['user__username', 'user__first_name', 'user__last_name', 'chapter__name']
+    ordering_fields = ['created_at', 'user__username']
 
     def get_queryset(self):
         """
-        Superusers and club admins can manage chapter managers
+        Return chapter admins that the user can view
         """
         if not self.request.user.is_authenticated:
-            return ChapterManager.objects.none()
+            return ChapterAdmin.objects.none()
         
         if self.request.user.is_superuser:
-            return ChapterManager.objects.select_related(
+            return ChapterAdmin.objects.select_related(
                 'user', 'chapter', 'chapter__club', 'created_by'
-            ).order_by('chapter__club__name', 'chapter__name', 'user__username')
+            ).all()
         
-        # Club admins can only manage chapter managers for their clubs
-        manageable_clubs = get_user_manageable_clubs(self.request.user)
-        return ChapterManager.objects.filter(
-            chapter__club__in=manageable_clubs
-        ).select_related(
-            'user', 'chapter', 'chapter__club', 'created_by'
-        ).order_by('chapter__club__name', 'chapter__name', 'user__username')
+        # Club admins can see chapter admins for their clubs
+        user_clubs = get_user_manageable_clubs(self.request.user)
+        if user_clubs.exists():
+            return ChapterAdmin.objects.select_related(
+                'user', 'chapter', 'chapter__club', 'created_by'
+            ).filter(chapter__club__in=user_clubs)
+        
+        return ChapterAdmin.objects.none()
 
     def perform_create(self, serializer):
-        """
-        Check if user can create chapter manager for the specified chapter
-        """
-        chapter = serializer.validated_data['chapter']
-        if not (self.request.user.is_superuser or 
-                ClubAdmin.objects.filter(user=self.request.user, club=chapter.club).exists()):
-            raise PermissionDenied("You don't have permission to create managers for this chapter")
-        
         serializer.save(created_by=self.request.user)

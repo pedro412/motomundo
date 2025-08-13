@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
-from .models import Club, Chapter, Member, ClubAdmin, ChapterManager
+from .models import Club, Chapter, Member, ClubAdmin, ChapterAdmin, UserClubContext
 
 
 class ChapterInline(admin.TabularInline):
@@ -36,8 +36,8 @@ class ClubAdminInline(admin.TabularInline):
 	readonly_fields = ('created_at', 'created_by')
 
 
-class ChapterManagerInline(admin.TabularInline):
-	model = ChapterManager
+class ChapterAdminInline(admin.TabularInline):
+	model = ChapterAdmin
 	extra = 0
 	readonly_fields = ('created_at', 'created_by')
 
@@ -55,8 +55,8 @@ class ClubAdminModelAdmin(admin.ModelAdmin):
 		obj.save()
 
 
-@admin.register(ChapterManager)
-class ChapterManagerModelAdmin(admin.ModelAdmin):
+@admin.register(ChapterAdmin)
+class ChapterAdminModelAdmin(admin.ModelAdmin):
 	list_display = ('user', 'chapter', 'created_at', 'created_by')
 	list_filter = ('chapter__club', 'chapter', 'created_at')
 	search_fields = ('user__username', 'user__first_name', 'user__last_name', 'chapter__name', 'chapter__club__name')
@@ -66,3 +66,10 @@ class ChapterManagerModelAdmin(admin.ModelAdmin):
 		if not change:  # Only set created_by for new objects
 			obj.created_by = request.user
 		obj.save()
+
+
+@admin.register(UserClubContext)
+class UserClubContextModelAdmin(admin.ModelAdmin):
+	list_display = ('user', 'active_club', 'updated_at')
+	list_filter = ('active_club', 'updated_at')
+	search_fields = ('user__username', 'user__first_name', 'user__last_name', 'active_club__name')
