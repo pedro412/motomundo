@@ -35,6 +35,15 @@ class MemberSerializer(serializers.ModelSerializer):
             'role', 'joined_at', 'user', 'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
+        extra_kwargs = {
+            'user': {'required': False, 'allow_null': True},
+        }
+
+    def validate(self, data):
+        # Ensure user field is not required
+        if 'user' not in data:
+            data['user'] = None
+        return data
 
 
 class ClubAdminSerializer(serializers.ModelSerializer):

@@ -366,13 +366,20 @@ class PermissionAPITests(APITestCase):
         """Chapter manager should be able to create members for their chapter"""
         self.client.force_authenticate(user=self.sf_manager)
         
+        # Get an existing user from the fixture
+        from django.contrib.auth.models import User
+        test_user = User.objects.filter(username='harley_admin').first()
+        
         data = {
             'chapter': self.sf_chapter.id,
             'first_name': 'New',
             'last_name': 'Member',
-            'role': 'rider'
+            'role': 'rider',
+            'user': test_user.id if test_user else None
         }
         response = self.client.post('/api/members/', data)
+        if response.status_code != status.HTTP_201_CREATED:
+            print(f"Error response: {response.status_code} - {response.data}")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_chapter_manager_cannot_create_member_for_other_chapter(self):

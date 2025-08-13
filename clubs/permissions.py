@@ -14,10 +14,15 @@ class IsClubAdminOrReadOnly(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return request.user.is_authenticated
         
-        # Write permissions only for club admins or superusers
-        return (request.user.is_authenticated and 
-                (request.user.is_superuser or 
-                 ClubAdmin.objects.filter(user=request.user).exists()))
+        # Check if user is authenticated first
+        if not request.user.is_authenticated:
+            return False
+        
+        # Write permissions only for club admins, chapter admins, or superusers
+        is_club_admin = ClubAdmin.objects.filter(user=request.user).exists()
+        is_chapter_admin = ChapterAdmin.objects.filter(user=request.user).exists()
+        
+        return (request.user.is_superuser or is_club_admin or is_chapter_admin)
     
     def has_object_permission(self, request, view, obj):
         # Read permissions for any authenticated user
@@ -32,7 +37,7 @@ class IsClubAdminOrReadOnly(permissions.BasePermission):
         user_clubs = Club.objects.filter(admins__user=request.user)
         
         # Club admins can only edit clubs they manage
-        if hasattr(obj, 'club'):
+        if hasattr(obj, 'club') and not isinstance(obj, Chapter):
             # For chapters and members
             return obj.club in user_clubs
         elif hasattr(obj, 'chapter'):
@@ -41,6 +46,10 @@ class IsClubAdminOrReadOnly(permissions.BasePermission):
         elif isinstance(obj, Club):
             # For clubs directly
             return obj in user_clubs
+        elif isinstance(obj, Chapter):
+            # For chapters directly - allow chapter admins to edit their chapters
+            is_chapter_admin = ChapterAdmin.objects.filter(user=request.user, chapter=obj).exists()
+            return (obj.club in user_clubs or is_chapter_admin)
         elif isinstance(obj, ClubAdmin):
             # NEW: Club admins can manage other club admins for their clubs
             return obj.club in user_clubs
@@ -195,7 +204,9 @@ def get_user_manageable_chapters(user):
     # Chapters where user is admin
     direct_chapters = Chapter.objects.filter(admins__user=user)
     
-    return (club_chapters | direct_chapters).distinct()
+    all_chapters = (club_chapters | direct_chapters).distinct()
+    
+    return all_chapters
 
 
 def get_user_manageable_members(user):

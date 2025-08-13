@@ -18,6 +18,7 @@ urlpatterns = [
     path('clubs/', include('clubs.urls')),
     path('api/', include(router.urls)),
     path('api/auth/', include('clubs.auth_urls')),
+    path('api/achievements/', include('achievements.urls')),  # Include achievement URLs with proper prefix
     path('healthz', healthz),
 ]
 
