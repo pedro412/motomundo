@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Start script for Railway deployment
+# This handles the PORT variable properly for Railway
+
+echo "🚀 Starting MotoMundo web server..."
+echo "📡 Binding to port: $PORT"
+
+# Default to port 8000 if PORT is not set
+PORT=${PORT:-8000}
+
+echo "🔧 Using port: $PORT"
+
+# Start gunicorn with proper settings
+# In production (Railway), gunicorn will be in PATH
+# For local testing, we can try both locations
+if command -v gunicorn >/dev/null 2>&1; then
+    GUNICORN_CMD="gunicorn"
+else
+    # Try virtual environment location for local testing
+    if [ -f ".venv/bin/gunicorn" ]; then
+        GUNICORN_CMD=".venv/bin/gunicorn"
+    else
+        echo "❌ Error: gunicorn not found"
+        exit 1
+    fi
+fi
+
+echo "🎯 Using gunicorn: $GUNICORN_CMD"
+
+exec $GUNICORN_CMD motomundo.wsgi:application \
+    --bind 0.0.0.0:$PORT \
+    --workers 2 \
+    --timeout 120 \
+    --keep-alive 5 \
+    --max-requests 1000 \
+    --preload \
+    --access-logfile - \
+    --error-logfile -
