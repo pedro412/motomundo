@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.response import Response
@@ -80,6 +81,123 @@ class MemberViewSet(viewsets.ModelViewSet):
         return get_user_manageable_members(self.request.user).select_related(
             'chapter', 'chapter__club', 'user'
         ).order_by('first_name', 'last_name')
+
+    @action(detail=True, methods=['get'], url_path='complete-profile')
+    def complete_profile(self, request, pk=None):
+        """
+        Get complete profile of a member including all their club memberships
+        and administrative roles if they have a linked user account
+        
+        Example: GET /api/members/123/complete-profile/
+        """
+        member = self.get_object()
+        
+        # Check if member has a linked user account
+        if not member.user:
+            return Response({
+                'error': 'Member is not linked to a user account',
+                'member_info': {
+                    'id': member.id,
+                    'name': f"{member.first_name} {member.last_name}".strip(),
+                    'nickname': member.nickname,
+                    'role': member.role,
+                    'chapter': member.chapter.name,
+                    'club': member.chapter.club.name,
+                    'has_user_account': False
+                }
+            }, status=200)
+        
+        # Get all memberships for this user
+        all_memberships = Member.objects.filter(user=member.user).select_related(
+            'chapter', 'chapter__club'
+        ).order_by('chapter__club__name', 'chapter__name')
+        
+        # Get administrative roles
+        administrative_roles = []
+        
+        # Club Admin roles
+        club_admins = ClubAdmin.objects.filter(user=member.user).select_related('club')
+        for club_admin in club_admins:
+            administrative_roles.append({
+                'type': 'club_admin',
+                'club_id': club_admin.club.id,
+                'club_name': club_admin.club.name,
+                'title': 'Club Administrator',
+                'since': club_admin.created_at.date(),
+                'permissions': [
+                    'manage_all_chapters',
+                    'create_members',
+                    'assign_chapter_admins',
+                    'edit_club_info'
+                ]
+            })
+        
+        # Chapter Admin roles
+        chapter_admins = ChapterAdmin.objects.filter(user=member.user).select_related(
+            'chapter', 'chapter__club'
+        )
+        for chapter_admin in chapter_admins:
+            administrative_roles.append({
+                'type': 'chapter_admin',
+                'club_id': chapter_admin.chapter.club.id,
+                'club_name': chapter_admin.chapter.club.name,
+                'chapter_id': chapter_admin.chapter.id,
+                'chapter_name': chapter_admin.chapter.name,
+                'title': 'Chapter Administrator',
+                'since': chapter_admin.created_at.date(),
+                'permissions': [
+                    'manage_chapter_members',
+                    'edit_chapter_info'
+                ]
+            })
+        
+        # Prepare membership data
+        memberships_data = []
+        for membership in all_memberships:
+            memberships_data.append({
+                'member_id': membership.id,
+                'club_id': membership.chapter.club.id,
+                'club_name': membership.chapter.club.name,
+                'chapter_id': membership.chapter.id,
+                'chapter_name': membership.chapter.name,
+                'first_name': membership.first_name,
+                'last_name': membership.last_name,
+                'nickname': membership.nickname,
+                'role': membership.role,
+                'member_since': membership.joined_at,
+                'is_active_member': membership.is_active,
+                'created_at': membership.created_at,
+                'is_current_context': membership.id == member.id  # Mark which member was clicked
+            })
+        
+        # Complete user profile
+        user_profile = {
+            'user': {
+                'id': member.user.id,
+                'username': member.user.username,
+                'email': member.user.email,
+                'full_name': member.user.get_full_name() or member.user.username,
+                'first_name': member.user.first_name,
+                'last_name': member.user.last_name,
+                'date_joined': member.user.date_joined,
+            },
+            'clicked_member_context': {
+                'member_id': member.id,
+                'club_name': member.chapter.club.name,
+                'chapter_name': member.chapter.name,
+                'member_role': member.role,
+                'member_nickname': member.nickname
+            },
+            'statistics': {
+                'total_clubs': len(set(m['club_id'] for m in memberships_data)),
+                'total_chapters': len(memberships_data),
+                'total_admin_roles': len(administrative_roles)
+            },
+            'all_memberships': memberships_data,
+            'administrative_roles': sorted(administrative_roles, key=lambda x: x['since'])
+        }
+        
+        return Response(user_profile)
 
 
 class ClubAdminViewSet(viewsets.ModelViewSet):

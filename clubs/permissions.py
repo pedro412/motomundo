@@ -131,8 +131,9 @@ class CanCreateMember(permissions.BasePermission):
                 except Chapter.DoesNotExist:
                     return False
         
-        # For other write operations (PUT, PATCH, DELETE), user must be superuser or have access
-        return request.user.is_superuser
+        # For other write operations (PUT, PATCH, DELETE), defer to object-level permissions
+        # This allows the has_object_permission method to handle the detailed check
+        return request.user.is_authenticated
     
     def has_object_permission(self, request, view, obj):
         # Allow read permissions for any authenticated user
