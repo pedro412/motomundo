@@ -1,0 +1,297 @@
+[
+{
+  "model": "auth.user",
+  "pk": 1,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$testpassword123$xyz",
+    "last_login": null,
+    "is_superuser": true,
+    "username": "admin",
+    "first_name": "Super",
+    "last_name": "User",
+    "email": "admin@motomundo.com",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 2,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$testpassword123$xyz",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "harley_admin",
+    "first_name": "John",
+    "last_name": "Harley",
+    "email": "admin@harley-riders.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 3,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$testpassword123$xyz",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "sf_manager",
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "email": "manager@harley-sf.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 4,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$testpassword123$xyz",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "bmw_admin",
+    "first_name": "Mike",
+    "last_name": "BMW",
+    "email": "admin@bmw-moto.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "clubs.club",
+  "pk": 1,
+  "fields": {
+    "name": "Harley Riders United",
+    "description": "A club for Harley-Davidson enthusiasts",
+    "foundation_date": "2010-03-15",
+    "logo": "",
+    "website": "https://harley-riders.com",
+    "created_at": "2025-08-12T00:00:00Z",
+    "updated_at": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "clubs.club",
+  "pk": 2,
+  "fields": {
+    "name": "BMW Motorrad Club",
+    "description": "BMW motorcycle owners and enthusiasts",
+    "foundation_date": "2015-06-20",
+    "logo": "",
+    "website": "https://bmw-moto.com",
+    "created_at": "2025-08-12T00:00:00Z",
+    "updated_at": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "clubs.club",
+  "pk": 3,
+  "fields": {
+    "name": "Ducati Riders Club",
+    "description": "Passionate Ducati motorcycle riders",
+    "foundation_date": "2018-01-10",
+    "logo": "",
+    "website": "https://ducati-riders.com",
+    "created_at": "2025-08-12T00:00:00Z",
+    "updated_at": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "clubs.chapter",
+  "pk": 1,
+  "fields": {
+    "club": 1,
+    "name": "San Francisco Chapter",
+    "description": "Bay Area Harley riders",
+    "foundation_date": "2010-06-01",
+    "created_at": "2025-08-12T00:00:00Z",
+    "updated_at": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "clubs.chapter",
+  "pk": 2,
+  "fields": {
+    "club": 1,
+    "name": "Los Angeles Chapter",
+    "description": "Southern California Harley riders",
+    "foundation_date": "2010-09-15",
+    "created_at": "2025-08-12T00:00:00Z",
+    "updated_at": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "clubs.chapter",
+  "pk": 3,
+  "fields": {
+    "club": 2,
+    "name": "Northern California Chapter",
+    "description": "Northern California BMW riders",
+    "foundation_date": "2015-08-10",
+    "created_at": "2025-08-12T00:00:00Z",
+    "updated_at": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "clubs.chapter",
+  "pk": 4,
+  "fields": {
+    "club": 2,
+    "name": "Southern California Chapter",
+    "description": "Southern California BMW riders",
+    "foundation_date": "2016-02-20",
+    "created_at": "2025-08-12T00:00:00Z",
+    "updated_at": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "clubs.chapter",
+  "pk": 5,
+  "fields": {
+    "club": 3,
+    "name": "Bay Area Chapter",
+    "description": "Bay Area Ducati enthusiasts",
+    "foundation_date": "2018-03-05",
+    "created_at": "2025-08-12T00:00:00Z",
+    "updated_at": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "clubs.member",
+  "pk": 1,
+  "fields": {
+    "chapter": 1,
+    "first_name": "Alice",
+    "last_name": "Johnson",
+    "nickname": "Road Queen",
+    "date_of_birth": "1985-04-15",
+    "role": "president",
+    "joined_at": "2010-06-15",
+    "user": null,
+    "is_active": true,
+    "created_at": "2025-08-12T00:00:00Z",
+    "updated_at": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "clubs.member",
+  "pk": 2,
+  "fields": {
+    "chapter": 1,
+    "first_name": "Bob",
+    "last_name": "Wilson",
+    "nickname": "Thunder",
+    "date_of_birth": "1978-11-22",
+    "role": "rider",
+    "joined_at": "2011-03-10",
+    "user": null,
+    "is_active": true,
+    "created_at": "2025-08-12T00:00:00Z",
+    "updated_at": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "clubs.member",
+  "pk": 3,
+  "fields": {
+    "chapter": 2,
+    "first_name": "Charlie",
+    "last_name": "Brown",
+    "nickname": "Desert Rider",
+    "date_of_birth": "1982-07-08",
+    "role": "secretary",
+    "joined_at": "2010-10-20",
+    "user": null,
+    "is_active": true,
+    "created_at": "2025-08-12T00:00:00Z",
+    "updated_at": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "clubs.member",
+  "pk": 4,
+  "fields": {
+    "chapter": 3,
+    "first_name": "Diana",
+    "last_name": "Davis",
+    "nickname": "Beemer",
+    "date_of_birth": "1990-12-03",
+    "role": "president",
+    "joined_at": "2015-09-01",
+    "user": null,
+    "is_active": true,
+    "created_at": "2025-08-12T00:00:00Z",
+    "updated_at": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "clubs.member",
+  "pk": 5,
+  "fields": {
+    "chapter": 4,
+    "first_name": "Emma",
+    "last_name": "Garcia",
+    "nickname": "Speed Demon",
+    "date_of_birth": "1987-09-18",
+    "role": "vice_president",
+    "joined_at": "2016-05-12",
+    "user": null,
+    "is_active": true,
+    "created_at": "2025-08-12T00:00:00Z",
+    "updated_at": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "clubs.member",
+  "pk": 6,
+  "fields": {
+    "chapter": 5,
+    "first_name": "Frank",
+    "last_name": "Miller",
+    "nickname": "Red Rocket",
+    "date_of_birth": "1975-05-30",
+    "role": "president",
+    "joined_at": "2018-04-01",
+    "user": null,
+    "is_active": true,
+    "created_at": "2025-08-12T00:00:00Z",
+    "updated_at": "2025-08-12T00:00:00Z"
+  }
+},
+{
+  "model": "clubs.clubadmin",
+  "pk": 1,
+  "fields": {
+    "user": 2,
+    "club": 1,
+    "created_at": "2025-08-12T00:00:00Z",
+    "created_by": 1
+  }
+},
+{
+  "model": "clubs.clubadmin",
+  "pk": 2,
+  "fields": {
+    "user": 4,
+    "club": 2,
+    "created_at": "2025-08-12T00:00:00Z",
+    "created_by": 1
+  }
+},
+{
+  "model": "clubs.chaptermanager",
+  "pk": 1,
+  "fields": {
+    "user": 3,
+    "chapter": 1,
+    "created_at": "2025-08-12T00:00:00Z",
+    "created_by": 2
+  }
+}
+]

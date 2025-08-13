@@ -1,6 +1,7 @@
 from django.db import models
 from django.db.models.functions import Lower
 from django.core.exceptions import ValidationError
+from django.contrib.auth.models import User
 
 from motomundo import settings
 
@@ -97,3 +98,43 @@ class Member(models.Model):
         # Ensure validation runs on programmatic saves as well
         self.full_clean()
         return super().save(*args, **kwargs)
+
+
+class ClubAdmin(models.Model):
+    """
+    Represents a user who can manage a specific club and all its chapters
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='club_admin_roles')
+    club = models.ForeignKey(Club, on_delete=models.CASCADE, related_name='admins')
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, 
+        related_name='created_club_admins'
+    )
+
+    class Meta:
+        unique_together = ['user', 'club']
+        ordering = ['club__name', 'user__username']
+
+    def __str__(self):
+        return f"{self.user.get_full_name() or self.user.username} - Admin of {self.club.name}"
+
+
+class ChapterManager(models.Model):
+    """
+    Represents a user who can manage members of a specific chapter
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chapter_manager_roles')
+    chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='managers')
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='created_chapter_managers'
+    )
+
+    class Meta:
+        unique_together = ['user', 'chapter']
+        ordering = ['chapter__club__name', 'chapter__name', 'user__username']
+
+    def __str__(self):
+        return f"{self.user.get_full_name() or self.user.username} - Manager of {self.chapter.name}"
