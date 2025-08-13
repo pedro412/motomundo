@@ -23,4 +23,4 @@ RUN python manage.py collectstatic --noinput || true
 EXPOSE 8000
 # Run gunicorn via bash so $PORT is expanded at runtime (Railway injects PORT)
 # NOTE: Using Django WSGI module (motomundo.wsgi:application) rather than Flask-style run:app
-CMD exec gunicorn run:app --bind 0.0.0.0:$PORT --workers 1
+CMD ["/bin/bash", "-c", "gunicorn motomundo.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2"]

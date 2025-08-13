@@ -4,27 +4,42 @@ set -euo pipefail
 echo "🚀 Starting MotoMundo on Railway..."
 
 # Show a subset of environment for debugging (mask obvious secrets)
-echo "� Environment snapshot (filtered):"
-env | grep -E 'PORT=|RAILWAY_|DJANGO_SETTINGS_MODULE' | sed 's/SECRET_KEY=.*/SECRET_KEY=***MASKED***/'
+echo "🔍 Environment snapshot (filtered):"
+env | grep -E '(^PORT=|RAILWAY_|DJANGO_SETTINGS_MODULE)' | sed 's/SECRET_KEY=.*/SECRET_KEY=***MASKED***/'
 
-# If user defined PORT in variables, Railway will not inject its own. Otherwise Railway injects one.
+# Capture raw values
 RAW_PORT="${PORT:-}"
+RAW_TCP_PROXY="${RAILWAY_TCP_PROXY_PORT:-}"
+echo "🧪 Raw PORT='${RAW_PORT}'  RAILWAY_TCP_PROXY_PORT='${RAW_TCP_PROXY}'"
+printf '🔡 PORT raw bytes (hex): '; printf '%s' "${RAW_PORT}" | od -An -t x1 || true
+
+# Fallback: if PORT empty but RAILWAY_TCP_PROXY_PORT present, use it
+if [ -z "$RAW_PORT" ] && [ -n "$RAW_TCP_PROXY" ]; then
+	echo "↪️ Using RAILWAY_TCP_PROXY_PORT as PORT fallback"
+	RAW_PORT="$RAW_TCP_PROXY"
+fi
+
 if [ -z "${RAW_PORT}" ]; then
-	echo "ℹ️ PORT not set by environment. Falling back to Railway default injection attempt or 8000.";
+	echo "ℹ️ No PORT provided; defaulting to 8000 (may mean Railway did not inject yet or custom var missing).";
 	PORT=8000
 else
-	# Trim and validate numeric
-	PORT="$(echo "$RAW_PORT" | tr -cd '0-9')"
+	# Strip non-digits
+	SANITIZED="$(echo "$RAW_PORT" | tr -cd '0-9')"
+	if [ -z "$SANITIZED" ]; then
+		echo "❌ PORT '$RAW_PORT' became empty after removing non-digits; defaulting to 8000" >&2
+		PORT=8000
+	else
+		PORT="$SANITIZED"
+	fi
 fi
 
 if ! [[ "$PORT" =~ ^[0-9]+$ ]]; then
-	echo "❌ PORT value '$RAW_PORT' is not purely numeric after sanitation -> '$PORT'" >&2
-	echo "🔁 Falling back to 8000"
+	echo "❌ PORT value '$PORT' still invalid; forcing 8000" >&2
 	PORT=8000
 fi
 
 if [ "$PORT" -lt 1 ] || [ "$PORT" -gt 65535 ]; then
-	echo "❌ PORT $PORT out of valid TCP range. Using 8000." >&2
+	echo "❌ PORT $PORT out of range; forcing 8000" >&2
 	PORT=8000
 fi
 
