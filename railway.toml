@@ -2,21 +2,12 @@
 version = 1
 
 [[services]]
-name = "motomundo-web"
+name = "motomundo"
 source = "."
 
 [services.build]
 buildCommand = "pip install -r requirements.txt"
 
 [services.deploy]
-startCommand = "bash railway-entrypoint.sh && gunicorn motomundo.wsgi:application --bind 0.0.0.0:$PORT"
+startCommand = "./start.sh"
 healthcheckPath = "/health/"
-healthcheckTimeout = 300
-
-[[services.volumes]]
-name = "static-files"
-mountPath = "/app/staticfiles"
-
-[[services.volumes]]
-name = "media-files" 
-mountPath = "/app/media"

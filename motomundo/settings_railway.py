@@ -5,6 +5,9 @@ import os
 import dj_database_url
 from .settings import *
 
+# Railway automatically sets PORT, but we can override if needed
+PORT = int(os.environ.get('PORT', 8000))
+
 # Railway-specific settings
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 ALLOWED_HOSTS = ['*']  # Railway handles domain routing
