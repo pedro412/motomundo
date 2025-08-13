@@ -451,3 +451,170 @@ class MemberModelTests(TestCase):
         member2.save()
         
         self.assertEqual(Member.objects.filter(first_name='John', last_name='Doe').count(), 2)
+
+
+class AuthenticationTests(APITestCase):
+    """Test user authentication and registration"""
+    
+    def test_user_registration(self):
+        """Test user registration endpoint"""
+        url = '/api/auth/register/'
+        data = {
+            'username': 'newuser',
+            'email': 'newuser@example.com',
+            'password': 'securepass123',
+            'password_confirm': 'securepass123',
+            'first_name': 'New',
+            'last_name': 'User'
+        }
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('user', response.data)
+        self.assertIn('token', response.data)
+        self.assertEqual(response.data['user']['username'], 'newuser')
+        self.assertEqual(response.data['user']['email'], 'newuser@example.com')
+
+    def test_registration_password_mismatch(self):
+        """Test registration fails with password mismatch"""
+        url = '/api/auth/register/'
+        data = {
+            'username': 'newuser',
+            'email': 'newuser@example.com',
+            'password': 'securepass123',
+            'password_confirm': 'differentpass123',
+        }
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('password_confirm', response.data)
+
+    def test_registration_duplicate_username(self):
+        """Test registration fails with duplicate username"""
+        # Create first user
+        User.objects.create_user(username='existing', email='existing@example.com', password='pass123')
+        
+        url = '/api/auth/register/'
+        data = {
+            'username': 'existing',
+            'email': 'new@example.com',
+            'password': 'securepass123',
+            'password_confirm': 'securepass123',
+        }
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('username', response.data)
+
+    def test_registration_duplicate_email(self):
+        """Test registration fails with duplicate email"""
+        # Create first user
+        User.objects.create_user(username='existing', email='existing@example.com', password='pass123')
+        
+        url = '/api/auth/register/'
+        data = {
+            'username': 'newuser',
+            'email': 'existing@example.com',
+            'password': 'securepass123',
+            'password_confirm': 'securepass123',
+        }
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('email', response.data)
+
+    def test_user_login(self):
+        """Test user login endpoint"""
+        # Create user
+        user = User.objects.create_user(username='testuser', email='test@example.com', password='testpass123')
+        
+        url = '/api/auth/login/'
+        data = {
+            'username': 'testuser',
+            'password': 'testpass123'
+        }
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('user', response.data)
+        self.assertIn('token', response.data)
+        self.assertEqual(response.data['user']['username'], 'testuser')
+
+    def test_login_invalid_credentials(self):
+        """Test login fails with invalid credentials"""
+        url = '/api/auth/login/'
+        data = {
+            'username': 'nonexistent',
+            'password': 'wrongpass'
+        }
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_user_profile_access(self):
+        """Test authenticated user can access profile"""
+        user = User.objects.create_user(username='testuser', email='test@example.com', password='testpass123')
+        self.client.force_authenticate(user=user)
+        
+        url = '/api/auth/profile/'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['username'], 'testuser')
+
+    def test_user_profile_unauthenticated(self):
+        """Test unauthenticated user cannot access profile"""
+        url = '/api/auth/profile/'
+        response = self.client.get(url)
+        
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+
+    def test_user_permissions_endpoint(self):
+        """Test user permissions endpoint"""
+        user = User.objects.create_user(username='testuser', email='test@example.com', password='testpass123')
+        self.client.force_authenticate(user=user)
+        
+        url = '/api/auth/permissions/'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('user', response.data)
+        self.assertIn('roles', response.data)
+        self.assertIn('permissions', response.data)
+        self.assertEqual(response.data['is_superuser'], False)
+
+    def test_change_password(self):
+        """Test password change endpoint"""
+        user = User.objects.create_user(username='testuser', email='test@example.com', password='oldpass123')
+        self.client.force_authenticate(user=user)
+        
+        url = '/api/auth/change-password/'
+        data = {
+            'old_password': 'oldpass123',
+            'new_password': 'newpass123',
+            'new_password_confirm': 'newpass123'
+        }
+        response = self.client.put(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('token', response.data)
+        
+        # Verify password was changed
+        user.refresh_from_db()
+        self.assertTrue(user.check_password('newpass123'))
+
+    def test_logout(self):
+        """Test logout endpoint"""
+        from rest_framework.authtoken.models import Token
+        
+        user = User.objects.create_user(username='testuser', email='test@example.com', password='testpass123')
+        token = Token.objects.create(user=user)
+        self.client.force_authenticate(user=user, token=token)
+        
+        url = '/api/auth/logout/'
+        response = self.client.post(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify token was deleted
+        self.assertFalse(Token.objects.filter(user=user).exists())

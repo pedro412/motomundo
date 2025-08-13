@@ -17,6 +17,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('clubs/', include('clubs.urls')),
     path('api/', include(router.urls)),
+    path('api/auth/', include('clubs.auth_urls')),
     path('healthz', healthz),
 ]
 

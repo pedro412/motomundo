@@ -68,6 +68,14 @@ docker-compose exec web python manage.py load_test_data
 
 ## API Endpoints
 
+### Authentication
+- `POST /api/auth/register/` - User registration
+- `POST /api/auth/login/` - User login
+- `POST /api/auth/logout/` - User logout
+- `GET/PUT /api/auth/profile/` - User profile management
+- `PUT /api/auth/change-password/` - Change password
+- `GET /api/auth/permissions/` - Get user roles and permissions
+
 ### Core Data Management
 - `GET/POST/PUT/DELETE /api/clubs/` - Club management
 - `GET/POST/PUT/DELETE /api/chapters/` - Chapter management
@@ -78,6 +86,11 @@ docker-compose exec web python manage.py load_test_data
 - `GET/POST/PUT/DELETE /api/chapter-managers/` - Chapter manager roles
 
 ### Features
+- **Token Authentication**: Secure API access with tokens
+- **User Registration**: Self-service account creation
+- **Password Security**: Django's built-in password validation
+- **Profile Management**: Update user information
+- **Role-based Access**: Automatic permission filtering
 - **Filtering**: Filter by various fields (club, chapter, role, etc.)
 - **Search**: Text search across relevant fields
 - **Ordering**: Sort by multiple fields
