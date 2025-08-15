@@ -18,20 +18,9 @@ def member_registration(request):
     if request.method == 'POST':
         form = MemberRegistrationForm(request.POST, request.FILES)
         if form.is_valid():
-            # Create the member instance but don't save yet
-            member = form.save(commit=False)
-            
-            # Set additional fields from the form
-            member.member_type = form.cleaned_data['member_type']
-            member.national_role = form.cleaned_data.get('national_role', '')
-            
-            # Handle profile picture
-            if form.cleaned_data.get('profile_picture'):
-                member.profile_picture = form.cleaned_data['profile_picture']
-            
-            # Save the member
             try:
-                member.save()
+                # Save the member - the form handles all the fields
+                member = form.save()
                 messages.success(
                     request,
                     f'¡Bienvenido a Alterados MC, {member.first_name}! Tu registro ha sido exitoso.'
@@ -40,7 +29,7 @@ def member_registration(request):
             except Exception as e:
                 messages.error(
                     request,
-                    f'Error al guardar tu registro. Por favor, intenta de nuevo.'
+                    f'Error al guardar tu registro: {str(e)}'
                 )
         else:
             messages.error(
