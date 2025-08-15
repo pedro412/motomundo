@@ -288,6 +288,7 @@
                                 <div class="col-md-6 mb-3">
                                     <label for="{{ form.date_of_birth.id_for_label }}" class="form-label">
                                         {{ form.date_of_birth.label }}
+                                        {% if form.date_of_birth.field.required %}<span class="required-asterisk">*</span>{% endif %}
                                     </label>
                                     {{ form.date_of_birth }}
                                     {% if form.date_of_birth.help_text %}

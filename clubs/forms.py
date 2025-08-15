@@ -17,6 +17,9 @@ class MemberRegistrationForm(forms.ModelForm):
         
         # Make profile picture required for Alterados MC registration
         self.fields['profile_picture'].required = True
+        
+        # Make date of birth required for Alterados MC registration
+        self.fields['date_of_birth'].required = True
 
     class Meta:
         model = Member
@@ -55,7 +58,8 @@ class MemberRegistrationForm(forms.ModelForm):
             }),
             'date_of_birth': forms.DateInput(attrs={
                 'class': 'form-control',
-                'type': 'date'
+                'type': 'date',
+                'required': True
             }),
             'profile_picture': forms.FileInput(attrs={
                 'class': 'form-control',
@@ -79,6 +83,6 @@ class MemberRegistrationForm(forms.ModelForm):
         help_texts = {
             'nickname': 'Apodo opcional o nombre de carretera',
             'national_role': 'Cargo nacional opcional dentro del club',
-            'date_of_birth': 'Opcional - Tu fecha de nacimiento',
+            'date_of_birth': 'Requerido - Tu fecha de nacimiento',
             'profile_picture': 'Requerido - Sube una foto de perfil clara'
         }
