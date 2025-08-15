@@ -36,7 +36,7 @@ def member_registration(request):
                     request,
                     f'¡Bienvenido a Alterados MC, {member.first_name}! Tu registro ha sido exitoso.'
                 )
-                return redirect('member_registration_success')
+                return redirect('clubs:registration_success')
             except Exception as e:
                 messages.error(
                     request,

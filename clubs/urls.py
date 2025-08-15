@@ -11,7 +11,7 @@ urlpatterns = [
     
     # Registration URLs with club-specific paths
     path('register/alteradosmc/', views.member_registration, name='member_registration'),
-    path('register/alteradosmc/success/', views.registration_success, name='registration_success'),
+    path('register/alteradosmc/success/', views.member_registration_success, name='registration_success'),
     
     # API endpoints
     path('api/clubs/', api.club_list_api, name='club_list_api'),
