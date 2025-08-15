@@ -17,6 +17,25 @@ class ClubSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
 
+    def to_representation(self, instance):
+        """
+        Override to provide working logo URL for Alterados MC
+        """
+        data = super().to_representation(instance)
+        
+        # For Alterados MC, replace the broken media URL with working static URL
+        if instance.name == "Alterados MC":
+            request = self.context.get('request')
+            static_url = static('clubs/logos/nacionalmc.jpg')
+            if request:
+                # Override the logo field with the working static URL
+                data['logo'] = request.build_absolute_uri(static_url)
+            else:
+                # Fallback for when request context is not available
+                data['logo'] = f"https://motomundo-production.up.railway.app{static_url}"
+        
+        return data
+
     def get_logo_url(self, obj):
         """
         Return logo URL with fallback to static file if media file doesn't exist
@@ -38,7 +57,8 @@ class ClubSerializer(serializers.ModelSerializer):
             static_url = static('clubs/logos/nacionalmc.jpg')
             if request:
                 return request.build_absolute_uri(static_url)
-            return static_url
+            else:
+                return f"https://motomundo-production.up.railway.app{static_url}"
         
         # Return None if no logo available
         return None
