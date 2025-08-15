@@ -23,8 +23,8 @@ from .permissions import (
 class ClubViewSet(viewsets.ModelViewSet):
     queryset = Club.objects.all()  # Default queryset, will be filtered in get_queryset
     serializer_class = ClubSerializer
-    # Require authenticated read access; only admins can write
-    permission_classes = [IsClubAdminOrReadOnly]
+    # Allow public read access; only admins can write
+    permission_classes = [IsClubAdminOrPublicReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['foundation_date']
     search_fields = ['name', 'website']
@@ -32,16 +32,11 @@ class ClubViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Return manageable clubs for authenticated users, or none for anonymous.
+        Return all clubs for read operations, manageable clubs for write operations.
         """
-        # For read operations, return manageable clubs if authenticated
+        # For read operations, return all clubs (public access)
         if self.action in ['list', 'retrieve']:
-            user = self.request.user
-            if not user or not user.is_authenticated:
-                return Club.objects.none()
-            if user.is_superuser:
-                return Club.objects.all().order_by('name')
-            return get_user_manageable_clubs(user).order_by('name')
+            return Club.objects.all().order_by('name')
 
         # For write operations, return clubs that the user can manage
         if not self.request.user.is_authenticated:
@@ -74,8 +69,8 @@ class ClubViewSet(viewsets.ModelViewSet):
 class ChapterViewSet(viewsets.ModelViewSet):
     queryset = Chapter.objects.all()  # Default queryset, will be filtered in get_queryset
     serializer_class = ChapterSerializer
-    # Require authenticated read access; only admins/chapter creators can write
-    permission_classes = [IsClubAdminOrReadOnly, CanCreateChapter]
+    # Allow public read access; only admins/chapter creators can write
+    permission_classes = [IsClubAdminOrPublicReadOnly, CanCreateChapter]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['club', 'foundation_date']
     search_fields = ['name', 'club__name']
@@ -83,15 +78,10 @@ class ChapterViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Return manageable chapters for authenticated users, or none for anonymous.
+        Return all chapters for read operations, manageable chapters for write operations.
         """
         if self.action in ['list', 'retrieve']:
-            user = self.request.user
-            if not user or not user.is_authenticated:
-                return Chapter.objects.none()
-            if user.is_superuser:
-                return Chapter.objects.select_related('club').order_by('name')
-            return get_user_manageable_chapters(user).select_related('club').order_by('name')
+            return Chapter.objects.select_related('club').order_by('name')
 
         # For write operations, return chapters that the user can manage
         if not self.request.user.is_authenticated:
@@ -130,8 +120,8 @@ class ChapterViewSet(viewsets.ModelViewSet):
 class MemberViewSet(viewsets.ModelViewSet):
     queryset = Member.objects.all()  # Default queryset, will be filtered in get_queryset
     serializer_class = MemberSerializer
-    # Require authenticated read access; only permitted admins can create members
-    permission_classes = [CanCreateMember]
+    # Allow public read access; only permitted admins can create members
+    permission_classes = [CanCreateMemberOrPublicRead]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['chapter', 'role', 'is_active']
     search_fields = ['first_name', 'last_name', 'nickname', 'chapter__name', 'chapter__club__name']
@@ -139,15 +129,10 @@ class MemberViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Return manageable members for authenticated users, or none for anonymous.
+        Return all members for read operations, manageable members for write operations.
         """
         if self.action in ['list', 'retrieve']:
-            user = self.request.user
-            if not user or not user.is_authenticated:
-                return Member.objects.none()
-            if user.is_superuser:
-                return Member.objects.select_related('chapter', 'chapter__club').order_by('first_name', 'last_name')
-            return get_user_manageable_members(user).select_related('chapter', 'chapter__club').order_by('first_name', 'last_name')
+            return Member.objects.select_related('chapter', 'chapter__club').order_by('first_name', 'last_name')
 
         # For write operations, return members that the user can manage
         if not self.request.user.is_authenticated:

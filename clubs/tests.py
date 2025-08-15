@@ -292,9 +292,13 @@ class PermissionAPITests(APITestCase):
         self.sf_chapter = Chapter.objects.get(name='San Francisco Chapter')
 
     def test_unauthenticated_access(self):
-        """Unauthenticated users should not have access"""
+        """Unauthenticated users should have read access but no write access"""
+        # Test read access - should work
         response = self.client.get('/api/clubs/')
-        # Either 401 (Unauthorized) or 403 (Forbidden) is acceptable
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Test write access - should be denied
+        response = self.client.post('/api/clubs/', {'name': 'Test Club'})
         self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
 
     def test_superuser_api_access(self):
@@ -310,33 +314,32 @@ class PermissionAPITests(APITestCase):
         self.assertEqual(len(response.data['results']), 5)  # All chapters
 
     def test_club_admin_api_access(self):
-        """Club admin should see only their club's data via API"""
+        """Club admin can see all clubs (public read) but write only to their clubs"""
         self.client.force_authenticate(user=self.harley_admin)
         
         response = self.client.get('/api/clubs/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['results']), 1)  # Only Harley club
-        self.assertEqual(response.data['results'][0]['name'], 'Harley Riders United')
+        self.assertEqual(len(response.data['results']), 3)  # All clubs (public read)
         
         response = self.client.get('/api/chapters/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['results']), 2)  # Only Harley chapters
+        self.assertEqual(len(response.data['results']), 5)  # All chapters (public read)
 
     def test_chapter_manager_api_access(self):
-        """Chapter manager should see only their chapter's data via API"""
+        """Chapter manager can see all data (public read) but write only to their chapters"""
         self.client.force_authenticate(user=self.sf_manager)
         
         response = self.client.get('/api/clubs/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['results']), 0)  # No clubs directly
+        self.assertEqual(len(response.data['results']), 3)  # All clubs (public read)
         
         response = self.client.get('/api/chapters/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['results']), 1)  # Only SF chapter
+        self.assertEqual(len(response.data['results']), 5)  # All chapters (public read)
         
         response = self.client.get('/api/members/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['results']), 2)  # Only SF members
+        self.assertTrue(len(response.data['results']) >= 2)  # All members (public read)
 
     def test_club_admin_can_create_chapter(self):
         """Club admin should be able to create chapters for their club"""
