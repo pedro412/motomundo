@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from clubs.api import ClubViewSet, ChapterViewSet, MemberViewSet, ClubAdminViewSet, ChapterAdminViewSet
+from clubs.dashboard_api import DashboardViewSet, UserProfileViewSet
 from emails.api import InvitationViewSet
 from .health import healthz
 from django.conf import settings
@@ -14,6 +15,8 @@ router.register(r'members', MemberViewSet)
 router.register(r'club-admins', ClubAdminViewSet)
 router.register(r'chapter-admins', ChapterAdminViewSet)
 router.register(r'invitations', InvitationViewSet, basename='invitation')
+router.register(r'dashboard', DashboardViewSet, basename='dashboard')
+router.register(r'users', UserProfileViewSet, basename='users')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

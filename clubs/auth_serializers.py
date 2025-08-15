@@ -21,6 +21,12 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         style={'input_type': 'password'},
         help_text="Confirm your password"
     )
+    username = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Optional username; if omitted the email will be used as username"
+    )
+
     email = serializers.EmailField(
         required=True,
         help_text="Valid email address"
@@ -30,17 +36,13 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         model = User
         fields = ('username', 'email', 'password', 'password_confirm', 'first_name', 'last_name')
         extra_kwargs = {
+            'username': {'required': False},
             'first_name': {'required': False},
             'last_name': {'required': False},
+            'email': {'required': True},
         }
 
-    def validate_username(self, value):
-        """
-        Validate username is unique (case-insensitive)
-        """
-        if User.objects.filter(username__iexact=value).exists():
-            raise serializers.ValidationError("A user with this username already exists.")
-        return value
+    # Username is auto-set to email, so no need to validate username
 
     def validate_email(self, value):
         """
@@ -48,6 +50,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         """
         if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError("A user with this email already exists.")
+        return value
+
+    def validate_username(self, value):
+        """
+        If username provided, ensure it's unique (case-insensitive) and not blank when given.
+        """
+        if value is None or value == '':
+            return value
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError("A user with this username already exists.")
         return value
 
     def validate_password(self, value):
@@ -72,15 +84,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """
-        Create a new user with encrypted password
+        Create a new user with encrypted password, username set to email
         """
-        # Remove password_confirm from validated_data
         validated_data.pop('password_confirm', None)
-        
-        # Create user
+        email = validated_data['email']
+        username = validated_data.get('username') or email
         user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
+            username=username,
+            email=email,
             password=validated_data['password'],
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', '')
@@ -213,6 +224,12 @@ class JWTRegisterSerializer(serializers.ModelSerializer):
         style={'input_type': 'password'},
         help_text="Confirm your password"
     )
+    username = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Optional username; if omitted the email will be used as username"
+    )
+
     email = serializers.EmailField(
         required=True,
         help_text="Valid email address"
@@ -222,17 +239,13 @@ class JWTRegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ('username', 'email', 'password', 'password_confirm', 'first_name', 'last_name')
         extra_kwargs = {
+            'username': {'required': False},
             'first_name': {'required': False},
             'last_name': {'required': False},
+            'email': {'required': True},
         }
 
-    def validate_username(self, value):
-        """
-        Validate username is unique (case-insensitive)
-        """
-        if User.objects.filter(username__iexact=value).exists():
-            raise serializers.ValidationError("A user with this username already exists.")
-        return value
+    # Username is auto-set to email, so no need to validate username
 
     def validate_email(self, value):
         """
@@ -240,6 +253,16 @@ class JWTRegisterSerializer(serializers.ModelSerializer):
         """
         if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError("A user with this email already exists.")
+        return value
+
+    def validate_username(self, value):
+        """
+        If username provided, ensure it's unique (case-insensitive) and not blank when given.
+        """
+        if value is None or value == '':
+            return value
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError("A user with this username already exists.")
         return value
 
     def validate_password(self, value):
@@ -264,15 +287,14 @@ class JWTRegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """
-        Create a new user with encrypted password
+        Create a new user with encrypted password, username set to email
         """
-        # Remove password_confirm from validated_data
         validated_data.pop('password_confirm', None)
-        
-        # Create user
+        email = validated_data['email']
+        username = validated_data.get('username') or email
         user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
+            username=username,
+            email=email,
             password=validated_data['password'],
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', '')

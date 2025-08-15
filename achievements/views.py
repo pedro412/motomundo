@@ -22,11 +22,11 @@ from .services import AchievementService
 
 class AchievementViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet for viewing achievements
+    ViewSet for viewing achievements - public read access
     """
     queryset = Achievement.objects.filter(is_active=True).order_by('category', 'difficulty', 'name')
     serializer_class = AchievementSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = []  # No authentication required for read-only access
     
     @action(detail=True, methods=['get'])
     def leaderboard(self, request, pk=None):
@@ -68,16 +68,22 @@ class AchievementViewSet(viewsets.ReadOnlyModelViewSet):
 
 class UserAchievementViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet for viewing user achievements
+    ViewSet for viewing user achievements - some endpoints require authentication
     """
     serializer_class = UserAchievementSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]  # Allow read access for some endpoints
     
     def get_queryset(self):
         """
         Filter achievements to show only user's own achievements unless they're staff
+        For anonymous users, return empty queryset for the main list
         """
         user = self.request.user
+        
+        # For anonymous users, return empty queryset for the main list view
+        if not user.is_authenticated:
+            return UserAchievement.objects.none()
+        
         if user.is_staff:
             # Staff can see all achievements
             return UserAchievement.objects.select_related(
@@ -107,7 +113,7 @@ class UserAchievementViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = UserAchievementSummarySerializer(summary_data)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['get'], url_path='user/(?P<user_id>[^/.]+)')
+    @action(detail=False, methods=['get'], url_path='user/(?P<user_id>[^/.]+)', permission_classes=[])
     def user_achievements(self, request, user_id=None):
         """
         Get achievements for a specific user (public view)
@@ -184,14 +190,14 @@ class AchievementProgressViewSet(viewsets.ReadOnlyModelViewSet):
 # Additional views for achievement statistics
 class AchievementStatsViewSet(viewsets.ViewSet):
     """
-    ViewSet for achievement statistics and global data
+    ViewSet for achievement statistics and global data - some endpoints are public
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[])
     def global_stats(self, request):
         """
-        Get global achievement statistics
+        Get global achievement statistics - public access
         """
         total_achievements = Achievement.objects.filter(is_active=True).count()
         total_earned = UserAchievement.objects.count()
@@ -199,7 +205,7 @@ class AchievementStatsViewSet(viewsets.ViewSet):
         
         # Most popular achievements
         popular_achievements = Achievement.objects.annotate(
-            earned_count=Count('userachievement')
+            earned_count=Count('user_achievements')
         ).filter(is_active=True).order_by('-earned_count')[:5]
         
         # Recent achievements
@@ -221,16 +227,16 @@ class AchievementStatsViewSet(viewsets.ViewSet):
             'recent_achievements': UserAchievementSerializer(recent_achievements, many=True).data
         })
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[])
     def top_users(self, request):
         """
-        Get top users by achievement points
+        Get top users by achievement points - public access
         """
         # This would require a more complex query to sum points
         # For now, return top users by achievement count
         top_users = User.objects.annotate(
-            achievement_count=Count('userachievement'),
-            total_points=Count('userachievement__achievement__points')  # Simplified
+            achievement_count=Count('earned_achievements'),
+            total_points=Count('earned_achievements__achievement__points')  # Simplified
         ).filter(achievement_count__gt=0).order_by('-achievement_count')[:10]
         
         users_data = []

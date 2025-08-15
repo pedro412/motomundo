@@ -10,8 +10,10 @@ from .models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
 from .serializers import ClubSerializer, ChapterSerializer, MemberSerializer, ClubAdminSerializer, ChapterAdminSerializer
 from .permissions import (
     IsClubAdminOrReadOnly, 
+    IsClubAdminOrPublicReadOnly,
     CanCreateChapter, 
     CanCreateMember,
+    CanCreateMemberOrPublicRead,
     get_user_manageable_clubs,
     get_user_manageable_chapters,
     get_user_manageable_members
@@ -21,6 +23,7 @@ from .permissions import (
 class ClubViewSet(viewsets.ModelViewSet):
     queryset = Club.objects.all()  # Default queryset, will be filtered in get_queryset
     serializer_class = ClubSerializer
+    # Require authenticated read access; only admins can write
     permission_classes = [IsClubAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['foundation_date']
@@ -29,17 +32,49 @@ class ClubViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Return clubs that the user can manage, or all clubs if superuser
+        Return manageable clubs for authenticated users, or none for anonymous.
         """
+        # For read operations, return manageable clubs if authenticated
+        if self.action in ['list', 'retrieve']:
+            user = self.request.user
+            if not user or not user.is_authenticated:
+                return Club.objects.none()
+            if user.is_superuser:
+                return Club.objects.all().order_by('name')
+            return get_user_manageable_clubs(user).order_by('name')
+
+        # For write operations, return clubs that the user can manage
         if not self.request.user.is_authenticated:
             return Club.objects.none()
-        
+
         return get_user_manageable_clubs(self.request.user).order_by('name')
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def my(self, request):
+        """
+        Get clubs where the authenticated user is an admin
+        GET /api/clubs/my/
+        """
+        user = request.user
+        my_clubs = get_user_manageable_clubs(user).order_by('name')
+        
+        # Use pagination if available
+        page = self.paginate_queryset(my_clubs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(my_clubs, many=True)
+        return Response({
+            'count': my_clubs.count(),
+            'results': serializer.data
+        })
 
 
 class ChapterViewSet(viewsets.ModelViewSet):
     queryset = Chapter.objects.all()  # Default queryset, will be filtered in get_queryset
     serializer_class = ChapterSerializer
+    # Require authenticated read access; only admins/chapter creators can write
     permission_classes = [IsClubAdminOrReadOnly, CanCreateChapter]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['club', 'foundation_date']
@@ -48,12 +83,42 @@ class ChapterViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Return chapters that the user can manage
+        Return manageable chapters for authenticated users, or none for anonymous.
         """
+        if self.action in ['list', 'retrieve']:
+            user = self.request.user
+            if not user or not user.is_authenticated:
+                return Chapter.objects.none()
+            if user.is_superuser:
+                return Chapter.objects.select_related('club').order_by('name')
+            return get_user_manageable_chapters(user).select_related('club').order_by('name')
+
+        # For write operations, return chapters that the user can manage
         if not self.request.user.is_authenticated:
             return Chapter.objects.none()
-        
+
         return get_user_manageable_chapters(self.request.user).select_related('club').order_by('name')
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def my(self, request):
+        """
+        Get chapters where the authenticated user is an admin or member
+        GET /api/chapters/my/
+        """
+        user = request.user
+        my_chapters = get_user_manageable_chapters(user).select_related('club').order_by('name')
+        
+        # Use pagination if available
+        page = self.paginate_queryset(my_chapters)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(my_chapters, many=True)
+        return Response({
+            'count': my_chapters.count(),
+            'results': serializer.data
+        })
 
     def perform_create(self, serializer):
         """
@@ -65,7 +130,8 @@ class ChapterViewSet(viewsets.ModelViewSet):
 class MemberViewSet(viewsets.ModelViewSet):
     queryset = Member.objects.all()  # Default queryset, will be filtered in get_queryset
     serializer_class = MemberSerializer
-    permission_classes = [CanCreateMember]  # Use only CanCreateMember which handles both club admins and chapter managers
+    # Require authenticated read access; only permitted admins can create members
+    permission_classes = [CanCreateMember]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['chapter', 'role', 'is_active']
     search_fields = ['first_name', 'last_name', 'nickname', 'chapter__name', 'chapter__club__name']
@@ -73,14 +139,42 @@ class MemberViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Return members that the user can manage
+        Return manageable members for authenticated users, or none for anonymous.
         """
+        if self.action in ['list', 'retrieve']:
+            user = self.request.user
+            if not user or not user.is_authenticated:
+                return Member.objects.none()
+            if user.is_superuser:
+                return Member.objects.select_related('chapter', 'chapter__club').order_by('first_name', 'last_name')
+            return get_user_manageable_members(user).select_related('chapter', 'chapter__club').order_by('first_name', 'last_name')
+
+        # For write operations, return members that the user can manage
         if not self.request.user.is_authenticated:
             return Member.objects.none()
+
+        return get_user_manageable_members(self.request.user).select_related('chapter', 'chapter__club').order_by('first_name', 'last_name')
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def my(self, request):
+        """
+        Get memberships of the authenticated user
+        GET /api/members/my/
+        """
+        user = request.user
+        my_memberships = Member.objects.filter(user=user).select_related('chapter', 'chapter__club').order_by('chapter__club__name', 'chapter__name')
         
-        return get_user_manageable_members(self.request.user).select_related(
-            'chapter', 'chapter__club', 'user'
-        ).order_by('first_name', 'last_name')
+        # Use pagination if available
+        page = self.paginate_queryset(my_memberships)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(my_memberships, many=True)
+        return Response({
+            'count': my_memberships.count(),
+            'results': serializer.data
+        })
 
     @action(detail=True, methods=['get'], url_path='complete-profile')
     def complete_profile(self, request, pk=None):

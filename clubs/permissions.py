@@ -3,6 +3,67 @@ from django.contrib.auth.models import User
 from .models import ClubAdmin, ChapterAdmin, Club, Chapter, Member
 
 
+class IsClubAdminOrPublicReadOnly(permissions.BasePermission):
+    """
+    Custom permission to allow club admins to edit clubs they manage,
+    and read-only access for all users (including unauthenticated).
+    """
+    
+    def has_permission(self, request, view):
+        # Allow read permissions for any user (authenticated or not)
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        
+        # Check if user is authenticated first for write operations
+        if not request.user.is_authenticated:
+            return False
+        
+        # Write permissions only for club admins, chapter admins, or superusers
+        is_club_admin = ClubAdmin.objects.filter(user=request.user).exists()
+        is_chapter_admin = ChapterAdmin.objects.filter(user=request.user).exists()
+        
+        return (request.user.is_superuser or is_club_admin or is_chapter_admin)
+    
+    def has_object_permission(self, request, view, obj):
+        # Read permissions for any user (authenticated or not)
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        
+        # For write operations, user must be authenticated
+        if not request.user.is_authenticated:
+            return False
+        
+        # Superusers have full access
+        if request.user.is_superuser:
+            return True
+        
+        # Get user's administered clubs
+        user_clubs = Club.objects.filter(admins__user=request.user)
+        
+        # Club admins can only edit clubs they manage
+        if hasattr(obj, 'club') and not isinstance(obj, Chapter):
+            # For chapters and members
+            return obj.club in user_clubs
+        elif hasattr(obj, 'chapter'):
+            # For members through chapter
+            return obj.chapter.club in user_clubs
+        elif isinstance(obj, Club):
+            # For clubs directly
+            return obj in user_clubs
+        elif isinstance(obj, Chapter):
+            # For chapters directly - allow chapter admins to edit their chapters
+            is_chapter_admin = ChapterAdmin.objects.filter(user=request.user, chapter=obj).exists()
+            return (obj.club in user_clubs or is_chapter_admin)
+        elif isinstance(obj, ClubAdmin):
+            # NEW: Club admins can manage other club admins for their clubs
+            return obj.club in user_clubs
+        elif isinstance(obj, ChapterAdmin):
+            # Club admins can manage chapter managers for their chapters
+            return obj.chapter.club in user_clubs
+        
+        return False
+
+
 class IsClubAdminOrReadOnly(permissions.BasePermission):
     """
     Custom permission to allow club admins to edit clubs they manage,
@@ -113,6 +174,58 @@ class CanCreateChapter(permissions.BasePermission):
                     return False
         
         return request.user.is_superuser
+
+
+class CanCreateMemberOrPublicRead(permissions.BasePermission):
+    """
+    Permission to check if a user can create members for a specific chapter
+    Also handles public read access for all users
+    """
+    
+    def has_permission(self, request, view):
+        # Allow read permissions for any user (authenticated or not)
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        
+        # For write operations (like POST), check if user can create members
+        if request.method == 'POST':
+            if not request.user.is_authenticated:
+                return False
+                
+            chapter_id = request.data.get('chapter')
+            if chapter_id:
+                try:
+                    chapter = Chapter.objects.get(id=chapter_id)
+                    return (
+                        request.user.is_superuser or
+                        ClubAdmin.objects.filter(user=request.user, club=chapter.club).exists() or
+                        ChapterAdmin.objects.filter(user=request.user, chapter=chapter).exists()
+                    )
+                except Chapter.DoesNotExist:
+                    return False
+        
+        # For other write operations (PUT, PATCH, DELETE), defer to object-level permissions
+        # This allows the has_object_permission method to handle the detailed check
+        return request.user.is_authenticated if request.user else False
+    
+    def has_object_permission(self, request, view, obj):
+        # Allow read permissions for any user (authenticated or not)
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        
+        # For write operations, user must be authenticated
+        if not request.user.is_authenticated:
+            return False
+        
+        # Superusers have full access
+        if request.user.is_superuser:
+            return True
+        
+        # For member objects, check if user can manage this member's chapter
+        return (
+            ClubAdmin.objects.filter(user=request.user, club=obj.chapter.club).exists() or
+            ChapterAdmin.objects.filter(user=request.user, chapter=obj.chapter).exists()
+        )
 
 
 class CanCreateMember(permissions.BasePermission):

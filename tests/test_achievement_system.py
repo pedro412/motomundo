@@ -345,13 +345,14 @@ class AchievementAPITests(APITestCase):
         self.assertIn('new_achievements', response.data)
     
     def test_unauthorized_access(self):
-        """Test that unauthorized users cannot access API"""
+        """Test that unauthorized users can access public achievement API"""
         self.client.credentials()  # Remove token
         
         url = reverse('achievement-list')
         response = self.client.get(url)
         
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        # Achievements are public, so should return 200
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
 class AchievementIntegrationTests(TestCase):
