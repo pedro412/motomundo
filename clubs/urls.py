@@ -18,6 +18,9 @@ app_name = 'clubs'
 urlpatterns = [
     path('', views.club_list, name='club_list'),
     
+    # Debug endpoint for Railway media files
+    path('debug/media/', views.media_debug, name='media_debug'),
+    
     # Registration URLs with club-specific paths
     path('register/alteradosmc/', views.member_registration, name='member_registration'),
     path('register/alteradosmc/success/', views.member_registration_success, name='registration_success'),
