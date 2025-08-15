@@ -48,6 +48,17 @@ class Member(models.Model):
         # Add more roles as needed
     ]
     
+    NATIONAL_ROLE_CHOICES = [
+        ('', '-- Sin rol nacional --'),  # Default empty option
+        ('national_president', 'National President'),
+        ('national_vice_president', 'National Vice President'),
+        ('national_secretary', 'National Secretary'),
+        ('national_counselor', 'National Counselor'),
+        ('zone_vp_south', 'Zone Vice President South'),
+        ('zone_vp_center', 'Zone Vice President Center'), 
+        ('zone_vp_north', 'Zone Vice President North'),
+    ]
+    
     MEMBER_TYPE_CHOICES = [
         ('pilot', 'Pilot'),
         ('copilot', 'Copilot'),
@@ -61,7 +72,7 @@ class Member(models.Model):
     date_of_birth = models.DateField(null=True, blank=True)
     role = models.CharField(max_length=30, choices=ROLE_CHOICES)
     member_type = models.CharField(max_length=20, choices=MEMBER_TYPE_CHOICES, default='pilot')
-    national_role = models.CharField(max_length=50, blank=True, null=True)
+    national_role = models.CharField(max_length=50, choices=NATIONAL_ROLE_CHOICES, blank=True, default='')
     profile_picture = models.ImageField(upload_to="members/profiles/", null=True, blank=True)
     joined_at = models.DateField(null=True, blank=True)
     user = models.ForeignKey(
