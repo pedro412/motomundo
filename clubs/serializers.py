@@ -21,6 +21,8 @@ class ClubSerializer(serializers.ModelSerializer):
         """
         Return logo URL with fallback to static file if media file doesn't exist
         """
+        request = self.context.get('request')
+        
         if obj.logo:
             # Check if media file exists or return fallback
             try:
@@ -33,7 +35,10 @@ class ClubSerializer(serializers.ModelSerializer):
         
         # Fallback to static file for Alterados MC
         if obj.name == "Alterados MC":
-            return static('clubs/logos/nacionalmc.jpg')
+            static_url = static('clubs/logos/nacionalmc.jpg')
+            if request:
+                return request.build_absolute_uri(static_url)
+            return static_url
         
         # Return None if no logo available
         return None
