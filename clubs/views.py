@@ -1,13 +1,14 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from .models import Club, Chapter, Member
 from .forms import MemberRegistrationForm
+from django.conf import settings
+import os
 
 
 def club_list(request):
-    clubs = Club.objects.all()
-    return render(request, 'clubs/club_list.html', {'clubs': clubs})
+    return redirect('https://mundobiker-web.vercel.app/clubs')
 
 
 def member_registration(request):
