@@ -1,8 +1,17 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from . import views
 from . import api
 from . import auth_views
 from . import dashboard_api
+
+# Create router for DRF ViewSets
+router = DefaultRouter()
+router.register(r'clubs', api.ClubViewSet)
+router.register(r'chapters', api.ChapterViewSet)
+router.register(r'members', api.MemberViewSet)
+router.register(r'club-admins', api.ClubAdminViewSet)
+router.register(r'chapter-admins', api.ChapterAdminViewSet)
 
 app_name = 'clubs'
 
@@ -13,15 +22,6 @@ urlpatterns = [
     path('register/alteradosmc/', views.member_registration, name='member_registration'),
     path('register/alteradosmc/success/', views.member_registration_success, name='registration_success'),
     
-    # API endpoints
-    path('api/clubs/', api.club_list_api, name='club_list_api'),
-    path('api/clubs/<int:club_id>/', api.club_detail_api, name='club_detail_api'),
-    path('api/clubs/<int:club_id>/members/', api.club_members_api, name='club_members_api'),
-    path('api/members/', api.member_list_api, name='member_list_api'),
-    path('api/members/<int:member_id>/', api.member_detail_api, name='member_detail_api'),
-    
-    # Chapter endpoints
-    path('api/chapters/', api.chapter_list_api, name='chapter_list_api'),
-    path('api/chapters/<int:chapter_id>/', api.chapter_detail_api, name='chapter_detail_api'),
-    path('api/chapters/<int:chapter_id>/members/', api.chapter_members_api, name='chapter_members_api'),
+    # API endpoints using DRF router
+    path('api/', include(router.urls)),
 ]
