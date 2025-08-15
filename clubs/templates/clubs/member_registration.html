@@ -423,7 +423,8 @@
                             
                             <div class="mb-4">
                                 <label for="{{ form.profile_picture.id_for_label }}" class="form-label">
-                                    Foto de Perfil
+                                    {{ form.profile_picture.label }}
+                                    {% if form.profile_picture.field.required %}<span class="required-asterisk">*</span>{% endif %}
                                 </label>
                                 {{ form.profile_picture }}
                                 {% if form.profile_picture.help_text %}

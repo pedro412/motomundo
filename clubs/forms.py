@@ -14,6 +14,9 @@ class MemberRegistrationForm(forms.ModelForm):
         
         # Update the chapter field placeholder
         self.fields['chapter'].empty_label = "Selecciona tu capítulo"
+        
+        # Make profile picture required for Alterados MC registration
+        self.fields['profile_picture'].required = True
 
     class Meta:
         model = Member
@@ -56,7 +59,8 @@ class MemberRegistrationForm(forms.ModelForm):
             }),
             'profile_picture': forms.FileInput(attrs={
                 'class': 'form-control',
-                'accept': 'image/*'
+                'accept': 'image/*',
+                'required': True
             })
         }
         
@@ -76,5 +80,5 @@ class MemberRegistrationForm(forms.ModelForm):
             'nickname': 'Apodo opcional o nombre de carretera',
             'national_role': 'Cargo nacional opcional dentro del club',
             'date_of_birth': 'Opcional - Tu fecha de nacimiento',
-            'profile_picture': 'Opcional - Sube una foto de perfil'
+            'profile_picture': 'Requerido - Sube una foto de perfil clara'
         }
