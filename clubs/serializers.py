@@ -9,12 +9,13 @@ from .models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
 
 class ClubSerializer(serializers.ModelSerializer):
     logo_url = serializers.SerializerMethodField()
+    featured_members = serializers.SerializerMethodField()
     
     class Meta:
         model = Club
         fields = [
             'id', 'name', 'description', 'foundation_date', 'logo', 'logo_url', 'website',
-            'created_at', 'updated_at'
+            'featured_members', 'created_at', 'updated_at'
         ]
 
     def to_representation(self, instance):
@@ -62,6 +63,45 @@ class ClubSerializer(serializers.ModelSerializer):
         
         # Return None if no logo available
         return None
+
+    def get_featured_members(self, obj):
+        """
+        Return all members with national roles for this club
+        """
+        # Get all members of this club that have a national role
+        featured_members = Member.objects.filter(
+            chapter__club=obj,
+            national_role__isnull=False,
+            national_role__gt='',  # Exclude empty strings
+            is_active=True
+        ).select_related('chapter').order_by('national_role', 'first_name', 'last_name')
+        
+        # Serialize the featured members
+        featured_data = []
+        for member in featured_members:
+            # Get the human-readable national role
+            national_role_display = None
+            for choice_value, choice_label in Member.NATIONAL_ROLE_CHOICES:
+                if choice_value == member.national_role:
+                    national_role_display = choice_label
+                    break
+            
+            member_data = {
+                'id': member.id,
+                'first_name': member.first_name,
+                'last_name': member.last_name,
+                'nickname': member.nickname,
+                'chapter_id': member.chapter.id,
+                'chapter_name': member.chapter.name,
+                'role': member.role,
+                'national_role': member.national_role,
+                'national_role_display': national_role_display,
+                'profile_picture': member.profile_picture.url if member.profile_picture else None,
+                'joined_at': member.joined_at,
+            }
+            featured_data.append(member_data)
+        
+        return featured_data
 
 
 class ChapterSerializer(serializers.ModelSerializer):
