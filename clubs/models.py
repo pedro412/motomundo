@@ -42,15 +42,27 @@ class Member(models.Model):
         ('vice_president', 'Vice President'),
         ('secretary', 'Secretary'),
         ('treasurer', 'Treasurer'),
-        ('rider', 'Rider'),
+        ('road_captain', 'Road Captain'),
+        ('sergeant_at_arms', 'Sergeant at Arms'),
+        ('member', 'Member'),
         # Add more roles as needed
     ]
+    
+    MEMBER_TYPE_CHOICES = [
+        ('pilot', 'Pilot'),
+        ('copilot', 'Copilot'),
+        ('prospect', 'Prospect'),
+    ]
+    
     chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name="members")
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100, blank=True)
     nickname = models.CharField(max_length=100, blank=True, null=True)
     date_of_birth = models.DateField(null=True, blank=True)
     role = models.CharField(max_length=30, choices=ROLE_CHOICES)
+    member_type = models.CharField(max_length=20, choices=MEMBER_TYPE_CHOICES, default='pilot')
+    national_role = models.CharField(max_length=50, blank=True, null=True)
+    profile_picture = models.ImageField(upload_to="members/profiles/", null=True, blank=True)
     joined_at = models.DateField(null=True, blank=True)
     user = models.ForeignKey(
         to='auth.User', null=True, blank=True, on_delete=models.SET_NULL,
