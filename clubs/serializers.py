@@ -1,16 +1,42 @@
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth.models import User
+from django.conf import settings
+from django.templatetags.static import static
+import os
 from .models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
 
 
 class ClubSerializer(serializers.ModelSerializer):
+    logo_url = serializers.SerializerMethodField()
+    
     class Meta:
         model = Club
         fields = [
-            'id', 'name', 'description', 'foundation_date', 'logo', 'website',
+            'id', 'name', 'description', 'foundation_date', 'logo', 'logo_url', 'website',
             'created_at', 'updated_at'
         ]
+
+    def get_logo_url(self, obj):
+        """
+        Return logo URL with fallback to static file if media file doesn't exist
+        """
+        if obj.logo:
+            # Check if media file exists or return fallback
+            try:
+                if hasattr(obj.logo, 'url'):
+                    media_path = os.path.join(settings.MEDIA_ROOT, str(obj.logo))
+                    if os.path.exists(media_path):
+                        return obj.logo.url
+            except (ValueError, AttributeError):
+                pass
+        
+        # Fallback to static file for Alterados MC
+        if obj.name == "Alterados MC":
+            return static('clubs/logos/nacionalmc.jpg')
+        
+        # Return None if no logo available
+        return None
 
 
 class ChapterSerializer(serializers.ModelSerializer):

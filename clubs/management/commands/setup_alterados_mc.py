@@ -24,8 +24,12 @@ class Command(BaseCommand):
                 self.style.WARNING(f'Club already exists: {club.name}')
             )
         
-        # Create initial chapters
+        # Create all 13 Alterados MC chapters
         chapters_to_create = [
+            {
+                'name': 'Nacional',
+                'description': 'Capítulo Nacional - Sede principal de Alterados MC'
+            },
             {
                 'name': 'Ciudad del Carmen',
                 'description': 'Capítulo de Ciudad del Carmen, Campeche'
@@ -33,6 +37,46 @@ class Command(BaseCommand):
             {
                 'name': 'Cancún',
                 'description': 'Capítulo de Cancún, Quintana Roo'
+            },
+            {
+                'name': 'Mérida',
+                'description': 'Capítulo de Mérida, Yucatán'
+            },
+            {
+                'name': 'Chetumal',
+                'description': 'Capítulo de Chetumal, Quintana Roo'
+            },
+            {
+                'name': 'Campeche',
+                'description': 'Capítulo de Campeche, Campeche'
+            },
+            {
+                'name': 'Playa del Carmen',
+                'description': 'Capítulo de Playa del Carmen, Quintana Roo'
+            },
+            {
+                'name': 'Cozumel',
+                'description': 'Capítulo de Cozumel, Quintana Roo'
+            },
+            {
+                'name': 'Valladolid',
+                'description': 'Capítulo de Valladolid, Yucatán'
+            },
+            {
+                'name': 'Tulum',
+                'description': 'Capítulo de Tulum, Quintana Roo'
+            },
+            {
+                'name': 'Escárcega',
+                'description': 'Capítulo de Escárcega, Campeche'
+            },
+            {
+                'name': 'Progreso',
+                'description': 'Capítulo de Progreso, Yucatán'
+            },
+            {
+                'name': 'Akumal',
+                'description': 'Capítulo de Akumal, Quintana Roo'
             }
         ]
         
