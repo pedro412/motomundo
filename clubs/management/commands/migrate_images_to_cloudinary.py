@@ -18,7 +18,7 @@ import logging
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from clubs.models import Member, Club
-from clubs.storage_backends import CloudinaryImageStorage
+from clubs.storage_backends import CloudinaryImageStorage, LocalImageStorage
 from django.core.files.base import ContentFile
 
 logger = logging.getLogger(__name__)
@@ -59,19 +59,21 @@ class Command(BaseCommand):
         if not self._check_cloudinary_config():
             return
             
-        # Initialize Cloudinary storage
+        # Initialize storage backends
         try:
             cloudinary_storage = CloudinaryImageStorage()
+            # Always use local storage to read existing files
+            local_storage = LocalImageStorage()
             self.stdout.write(self.style.SUCCESS('✅ Cloudinary storage initialized'))
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f'❌ Failed to initialize Cloudinary storage: {e}'))
+            self.stdout.write(self.style.ERROR(f'❌ Failed to initialize storage backends: {e}'))
             return
             
         # Migrate member profile pictures
-        self._migrate_member_profiles(cloudinary_storage)
+        self._migrate_member_profiles(cloudinary_storage, local_storage)
         
         # Migrate club logos
-        self._migrate_club_logos(cloudinary_storage)
+        self._migrate_club_logos(cloudinary_storage, local_storage)
         
         self.stdout.write(self.style.SUCCESS('🎉 Image migration completed!'))
 
@@ -100,7 +102,7 @@ class Command(BaseCommand):
         self.stdout.write(f'✅ Cloudinary configured with cloud: {CLOUDINARY_STORAGE["CLOUD_NAME"]}')
         return True
 
-    def _migrate_member_profiles(self, cloudinary_storage):
+    def _migrate_member_profiles(self, cloudinary_storage, local_storage):
         """Migrate member profile pictures to Cloudinary"""
         self.stdout.write('\n📸 Migrating member profile pictures...')
         
@@ -135,11 +137,18 @@ class Command(BaseCommand):
                     successful_migrations += 1
                     continue
                     
-                # Read the file content using Django's storage system
+                # Read the file content using LOCAL storage system (where files actually are)
                 try:
-                    # Use the storage backend to read the file
-                    file_content = current_file.read()
-                    current_file.seek(0)  # Reset file pointer
+                    # Check if file exists in local storage first
+                    if not local_storage.exists(current_file.name):
+                        self.stdout.write(self.style.WARNING(f'⚠️  File not found in local storage: {current_file.name}'))
+                        failed_migrations += 1
+                        continue
+                        
+                    # Read file using local storage backend
+                    with local_storage.open(current_file.name, 'rb') as f:
+                        file_content = f.read()
+                        
                 except Exception as e:
                     self.stdout.write(self.style.WARNING(f'⚠️  Could not read file {current_file.name}: {e}'))
                     failed_migrations += 1
@@ -171,7 +180,7 @@ class Command(BaseCommand):
         self.stdout.write(f'✅ Successful: {successful_migrations}')
         self.stdout.write(f'❌ Failed: {failed_migrations}')
 
-    def _migrate_club_logos(self, cloudinary_storage):
+    def _migrate_club_logos(self, cloudinary_storage, local_storage):
         """Migrate club logos to Cloudinary"""
         self.stdout.write('\n🏛️  Migrating club logos...')
         
@@ -206,11 +215,18 @@ class Command(BaseCommand):
                     successful_migrations += 1
                     continue
                     
-                # Read the file content using Django's storage system
+                # Read the file content using LOCAL storage system (where files actually are)
                 try:
-                    # Use the storage backend to read the file
-                    file_content = current_file.read()
-                    current_file.seek(0)  # Reset file pointer
+                    # Check if file exists in local storage first
+                    if not local_storage.exists(current_file.name):
+                        self.stdout.write(self.style.WARNING(f'⚠️  File not found in local storage: {current_file.name}'))
+                        failed_migrations += 1
+                        continue
+                        
+                    # Read file using local storage backend
+                    with local_storage.open(current_file.name, 'rb') as f:
+                        file_content = f.read()
+                        
                 except Exception as e:
                     self.stdout.write(self.style.WARNING(f'⚠️  Could not read file {current_file.name}: {e}'))
                     failed_migrations += 1
