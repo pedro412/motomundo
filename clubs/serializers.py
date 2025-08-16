@@ -90,14 +90,44 @@ class ClubSerializer(serializers.ModelSerializer):
                     national_role_display = choice_label
                     break
                 
-            # Build absolute URL for profile picture
+            # Build absolute URL for profile picture with Railway-compatible fallback
             profile_picture_url = None
             if member.profile_picture:
-                if request:
-                    profile_picture_url = request.build_absolute_uri(member.profile_picture.url)
-                else:
-                    # Fallback for when request context is not available
-                    profile_picture_url = f"https://motomundo-production.up.railway.app{member.profile_picture.url}"
+                try:
+                    # First, try the media URL (works in local development)
+                    if request:
+                        media_url = request.build_absolute_uri(member.profile_picture.url)
+                        
+                        # Check if we're in a Railway production environment
+                        if 'railway.app' in request.get_host():
+                            # On Railway, media files might not be served, so try static fallback
+                            media_path = str(member.profile_picture)
+                            if media_path.startswith('members/profiles/'):
+                                # Convert to static path
+                                filename = media_path.split('/')[-1]
+                                static_path = f"clubs/members/profiles/{filename}"
+                                try:
+                                    static_url = static(static_path)
+                                    profile_picture_url = request.build_absolute_uri(static_url)
+                                except:
+                                    # If static file doesn't exist, fall back to media URL
+                                    profile_picture_url = media_url
+                            else:
+                                profile_picture_url = media_url
+                        else:
+                            # Local development - use media URL
+                            profile_picture_url = media_url
+                    else:
+                        # No request context - use direct URL
+                        profile_picture_url = member.profile_picture.url
+                except (ValueError, AttributeError):
+                    # If there's any error, use default avatar
+                    profile_picture_url = None
+            
+            # If no profile picture is set, provide default avatar
+            if not profile_picture_url and request:
+                default_avatar_url = static('clubs/members/profiles/default-avatar.svg')
+                profile_picture_url = request.build_absolute_uri(default_avatar_url)
   
             member_data = {
                 'id': member.id,
