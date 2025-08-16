@@ -10,12 +10,13 @@ from .models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
 class ClubSerializer(serializers.ModelSerializer):
     logo_url = serializers.SerializerMethodField()
     featured_members = serializers.SerializerMethodField()
+    total_members = serializers.SerializerMethodField()
     
     class Meta:
         model = Club
         fields = [
             'id', 'name', 'description', 'foundation_date', 'logo', 'logo_url', 'website',
-            'featured_members', 'created_at', 'updated_at'
+            'featured_members', 'created_at', 'updated_at', 'total_members'
         ]
 
     def to_representation(self, instance):
@@ -85,7 +86,8 @@ class ClubSerializer(serializers.ModelSerializer):
                 if choice_value == member.national_role:
                     national_role_display = choice_label
                     break
-            
+                
+  
             member_data = {
                 'id': member.id,
                 'first_name': member.first_name,
@@ -98,21 +100,35 @@ class ClubSerializer(serializers.ModelSerializer):
                 'national_role_display': national_role_display,
                 'profile_picture': member.profile_picture.url if member.profile_picture else None,
                 'joined_at': member.joined_at,
+                'is_active': member.is_active
             }
             featured_data.append(member_data)
         
         return featured_data
 
+    def get_total_members(self, obj):
+        """
+        Return the total number of members for this club
+        """
+        return Member.objects.filter(chapter__club=obj).count()
+
 
 class ChapterSerializer(serializers.ModelSerializer):
     club = serializers.PrimaryKeyRelatedField(queryset=Club.objects.all())
+    total_members = serializers.SerializerMethodField()
 
     class Meta:
         model = Chapter
         fields = [
             'id', 'club', 'name', 'description', 'foundation_date',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'total_members'
         ]
+
+    def get_total_members(self, obj):
+        """
+        Return the total number of members for this chapter
+        """
+        return Member.objects.filter(chapter=obj).count()
 
 
 class MemberSerializer(serializers.ModelSerializer):
@@ -122,7 +138,7 @@ class MemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = Member
         fields = [
-            'id', 'chapter', 'first_name', 'last_name', 'nickname', 'date_of_birth',
+            'id', 'chapter', 'first_name', 'last_name', 'nickname', 'date_of_birth', 'profile_picture',
             'role', 'joined_at', 'user', 'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
