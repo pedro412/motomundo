@@ -24,46 +24,35 @@ class ClubSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         """
-        Override to provide working logo URL for Alterados MC
+        Override to provide proper logo URL handling
         """
         data = super().to_representation(instance)
-        
-        # For Alterados MC, replace the broken media URL with working static URL
-        if instance.name == "Alterados MC":
-            request = self.context.get('request')
-            static_url = static('clubs/logos/nacionalmc.jpg')
-            if request:
-                # Override the logo field with the working static URL
-                data['logo'] = request.build_absolute_uri(static_url)
-            else:
-                # Fallback for when request context is not available
-                data['logo'] = f"https://motomundo-production.up.railway.app{static_url}"
-        
         return data
 
     def get_logo_url(self, obj):
         """
-        Return logo URL with fallback to static file if media file doesn't exist
+        Return logo URL using flexible storage backend
         """
         request = self.context.get('request')
         
         if obj.logo:
-            # Check if media file exists or return fallback
             try:
-                if hasattr(obj.logo, 'url'):
-                    media_path = os.path.join(settings.MEDIA_ROOT, str(obj.logo))
-                    if os.path.exists(media_path):
-                        return obj.logo.url
-            except (ValueError, AttributeError):
-                pass
-        
-        # Fallback to static file for Alterados MC
-        if obj.name == "Alterados MC":
-            static_url = static('clubs/logos/nacionalmc.jpg')
-            if request:
-                return request.build_absolute_uri(static_url)
-            else:
-                return f"https://motomundo-production.up.railway.app{static_url}"
+                # Get URL from the flexible storage backend
+                logo_url = obj.logo.url
+                
+                # For Cloudinary URLs, they're already absolute
+                if logo_url.startswith(('http://', 'https://')):
+                    return logo_url
+                
+                # For local URLs, make them absolute if request context is available
+                if request:
+                    return request.build_absolute_uri(logo_url)
+                else:
+                    # Fallback for when request context is not available
+                    return f"https://motomundo-production.up.railway.app{logo_url}"
+                    
+            except (ValueError, AttributeError) as e:
+                logger.warning(f"Error getting logo URL for club {obj.id}: {e}")
         
         # Return None if no logo available
         return None
