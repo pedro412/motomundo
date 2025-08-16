@@ -77,6 +77,9 @@ class ClubSerializer(serializers.ModelSerializer):
             is_active=True
         ).select_related('chapter').order_by('national_role', 'first_name', 'last_name')
         
+        # Get request context for building absolute URLs
+        request = self.context.get('request')
+        
         # Serialize the featured members
         featured_data = []
         for member in featured_members:
@@ -87,6 +90,14 @@ class ClubSerializer(serializers.ModelSerializer):
                     national_role_display = choice_label
                     break
                 
+            # Build absolute URL for profile picture
+            profile_picture_url = None
+            if member.profile_picture:
+                if request:
+                    profile_picture_url = request.build_absolute_uri(member.profile_picture.url)
+                else:
+                    # Fallback for when request context is not available
+                    profile_picture_url = f"https://motomundo-production.up.railway.app{member.profile_picture.url}"
   
             member_data = {
                 'id': member.id,
@@ -98,7 +109,7 @@ class ClubSerializer(serializers.ModelSerializer):
                 'role': member.role,
                 'national_role': member.national_role,
                 'national_role_display': national_role_display,
-                'profile_picture': member.profile_picture.url if member.profile_picture else None,
+                'profile_picture': profile_picture_url,
                 'joined_at': member.joined_at,
                 'is_active': member.is_active
             }
