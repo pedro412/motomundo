@@ -83,22 +83,27 @@ class Command(BaseCommand):
 
     def _check_cloudinary_config(self):
         """Check if Cloudinary is properly configured"""
-        required_settings = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET']
+        # Import the storage config to get the CLOUDINARY_STORAGE dict
+        from clubs.storage_config import CLOUDINARY_STORAGE
+        
+        required_settings = ['CLOUD_NAME', 'API_KEY', 'API_SECRET']
         missing_settings = []
         
         for setting in required_settings:
-            if not getattr(settings, setting, None):
-                missing_settings.append(setting)
+            if not CLOUDINARY_STORAGE.get(setting):
+                missing_settings.append(f'CLOUDINARY_{setting}')
                 
         if missing_settings:
             self.stdout.write(
                 self.style.ERROR(
                     f'❌ Missing Cloudinary configuration: {", ".join(missing_settings)}\n'
-                    'Please set these environment variables before running the migration.'
+                    'Please set these environment variables in Railway dashboard before running the migration.'
                 )
             )
             return False
             
+        # Also show what we found for debugging
+        self.stdout.write(f'✅ Cloudinary configured with cloud: {CLOUDINARY_STORAGE["CLOUD_NAME"]}')
         return True
 
     def _migrate_member_profiles(self, cloudinary_storage):
