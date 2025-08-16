@@ -15,7 +15,6 @@ DEBUG = os.environ.get('DEBUG', '1') == '1'
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
-    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -23,10 +22,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'rest_framework.authtoken',
     'rest_framework_simplejwt',
-    'rest_framework_simplejwt.token_blacklist',
     'django_filters',
+    'corsheaders',
+    
+    # Image storage backends
+    'cloudinary_storage',
+    'cloudinary',
+    
+    # Project apps
     'clubs',
     'achievements',
     'emails',
@@ -111,6 +115,29 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# =============================================================================
+# FLEXIBLE IMAGE STORAGE CONFIGURATION
+# =============================================================================
+
+# Import storage configuration
+from clubs.storage_config import *
+
+# Configure Cloudinary (current backend)
+if 'cloudinary' in INSTALLED_APPS or IMAGE_STORAGE_BACKEND == 'cloudinary':
+    import cloudinary
+    import cloudinary.uploader
+    import cloudinary.api
+    
+    cloudinary.config(
+        cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'],
+        api_key=CLOUDINARY_STORAGE['API_KEY'],
+        api_secret=CLOUDINARY_STORAGE['API_SECRET'],
+        secure=CLOUDINARY_STORAGE['SECURE']
+    )
+
+# Default file storage (will be overridden by our flexible storage)
+DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Django REST Framework
@@ -172,3 +199,6 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@motomundo.com
 
 # Frontend URL for invitation links
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+
+# Custom Image Storage Configuration
+FLEXIBLE_IMAGE_STORAGE = 'clubs.storage_backends.get_flexible_image_storage'

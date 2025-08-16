@@ -1,8 +1,10 @@
 services:
   db:
     image: postgres:15
-    env_file:
-      - .env.dev
+    environment:
+      POSTGRES_DB: motomundo_dev
+      POSTGRES_USER: motomundo
+      POSTGRES_PASSWORD: motomundo
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data/
     ports:
@@ -24,8 +26,8 @@ services:
       - db
       - redis
     env_file:
-      - .env.dev
-  # All required env vars (DB, Redis, DEBUG, etc.) are provided via .env.dev
+      - .env
+  # Environment variables are provided via .env file (copied from .env.local)
 
 volumes:
   postgres_data_dev:

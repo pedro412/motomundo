@@ -2,15 +2,30 @@ from django.db import models
 from django.db.models.functions import Lower
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
+from django.utils.module_loading import import_string
+from django.conf import settings as django_settings
 
 from motomundo import settings
+
+
+def get_image_storage():
+    """Get the flexible image storage instance"""
+    storage_path = getattr(django_settings, 'FLEXIBLE_IMAGE_STORAGE', 'clubs.storage_backends.get_flexible_image_storage')
+    storage_class = import_string(storage_path)
+    return storage_class()
 
 
 class Club(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     foundation_date = models.DateField(null=True, blank=True)
-    logo = models.ImageField(upload_to="clubs/logos/", null=True, blank=True)
+    logo = models.ImageField(
+        upload_to='clubs/logos/', 
+        blank=True, 
+        null=True,
+        storage=get_image_storage,
+        help_text="Club logo - automatically optimized and stored in the cloud"
+    )
     website = models.URLField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -73,7 +88,12 @@ class Member(models.Model):
     role = models.CharField(max_length=30, choices=ROLE_CHOICES)
     member_type = models.CharField(max_length=20, choices=MEMBER_TYPE_CHOICES, default='pilot')
     national_role = models.CharField(max_length=50, choices=NATIONAL_ROLE_CHOICES, blank=True, default='')
-    profile_picture = models.ImageField(upload_to="members/profiles/", null=True, blank=True)
+    profile_picture = models.ImageField(
+        upload_to='members/profiles/', 
+        blank=False,
+        storage=get_image_storage,
+        help_text="Member profile picture - automatically optimized and stored in the cloud"
+    )
     joined_at = models.DateField(null=True, blank=True)
     user = models.ForeignKey(
         to='auth.User', null=True, blank=True, on_delete=models.SET_NULL,
