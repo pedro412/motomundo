@@ -72,6 +72,21 @@ class CloudinaryImageStorage(BaseImageStorage):
     
     def size(self, name):
         return self.storage.size(name)
+    
+    def _open(self, name, mode='rb'):
+        return self.storage._open(name, mode)
+    
+    def _save(self, name, content):
+        return self.storage._save(name, content)
+    
+    def get_accessed_time(self, name):
+        return self.storage.get_accessed_time(name)
+    
+    def get_created_time(self, name):
+        return self.storage.get_created_time(name)
+    
+    def get_modified_time(self, name):
+        return self.storage.get_modified_time(name)
 
 
 class S3ImageStorage(BaseImageStorage):
@@ -138,6 +153,21 @@ class LocalImageStorage(BaseImageStorage):
     
     def size(self, name):
         return self.storage.size(name)
+    
+    def _open(self, name, mode='rb'):
+        return self.storage._open(name, mode)
+    
+    def _save(self, name, content):
+        return self.storage._save(name, content)
+    
+    def get_accessed_time(self, name):
+        return self.storage.get_accessed_time(name)
+    
+    def get_created_time(self, name):
+        return self.storage.get_created_time(name)
+    
+    def get_modified_time(self, name):
+        return self.storage.get_modified_time(name)
 
 
 class FlexibleImageStorage(Storage):
@@ -208,6 +238,46 @@ class FlexibleImageStorage(Storage):
         except Exception as e:
             logger.error(f"Error getting size of {name}: {e}")
             return 0
+    
+    def _open(self, name, mode='rb'):
+        """Open a file for reading using the configured backend"""
+        try:
+            return self._storage._open(name, mode)
+        except Exception as e:
+            logger.error(f"Error opening file {name}: {e}")
+            raise
+    
+    def _save(self, name, content):
+        """Save a file using the configured backend"""
+        try:
+            return self._storage._save(name, content)
+        except Exception as e:
+            logger.error(f"Error saving file {name}: {e}")
+            raise
+    
+    def get_accessed_time(self, name):
+        """Get file accessed time"""
+        try:
+            return self._storage.get_accessed_time(name)
+        except Exception as e:
+            logger.error(f"Error getting accessed time for {name}: {e}")
+            return None
+    
+    def get_created_time(self, name):
+        """Get file created time"""
+        try:
+            return self._storage.get_created_time(name)
+        except Exception as e:
+            logger.error(f"Error getting created time for {name}: {e}")
+            return None
+    
+    def get_modified_time(self, name):
+        """Get file modified time"""
+        try:
+            return self._storage.get_modified_time(name)
+        except Exception as e:
+            logger.error(f"Error getting modified time for {name}: {e}")
+            return None
 
 
 # Function to get storage instance (migration-friendly)

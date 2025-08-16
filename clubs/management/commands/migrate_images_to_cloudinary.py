@@ -34,11 +34,6 @@ class Command(BaseCommand):
             help='Preview the migration without making any changes',
         )
         parser.add_argument(
-            '--cleanup',
-            action='store_true',
-            help='Remove local files after successful migration to Cloudinary',
-        )
-        parser.add_argument(
             '--force',
             action='store_true',
             help='Force migration even if IMAGE_STORAGE_BACKEND is not set to cloudinary',
@@ -46,7 +41,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.dry_run = options['dry_run']
-        self.cleanup = options['cleanup']
         self.force = options['force']
         
         self.stdout.write(self.style.SUCCESS('🔄 Starting image migration to Cloudinary...'))
@@ -129,21 +123,27 @@ class Command(BaseCommand):
             try:
                 # Get the current file path
                 current_file = member.profile_picture
-                local_path = current_file.path if hasattr(current_file, 'path') else None
                 
-                if not local_path or not os.path.exists(local_path):
-                    self.stdout.write(self.style.WARNING(f'⚠️  Local file not found: {current_file.name}'))
+                # Check if file exists using the current storage
+                if not current_file or not current_file.name:
+                    self.stdout.write(self.style.WARNING(f'⚠️  No profile picture file for member'))
                     failed_migrations += 1
                     continue
-                    
+                
                 if self.dry_run:
-                    self.stdout.write(f'🔍 [DRY RUN] Would migrate: {local_path} -> Cloudinary')
+                    self.stdout.write(f'🔍 [DRY RUN] Would migrate: {current_file.name} -> Cloudinary')
                     successful_migrations += 1
                     continue
                     
-                # Read the file content
-                with open(local_path, 'rb') as f:
-                    file_content = f.read()
+                # Read the file content using Django's storage system
+                try:
+                    # Use the storage backend to read the file
+                    file_content = current_file.read()
+                    current_file.seek(0)  # Reset file pointer
+                except Exception as e:
+                    self.stdout.write(self.style.WARNING(f'⚠️  Could not read file {current_file.name}: {e}'))
+                    failed_migrations += 1
+                    continue
                     
                 # Create a ContentFile
                 content_file = ContentFile(file_content)
@@ -158,13 +158,7 @@ class Command(BaseCommand):
                 
                 self.stdout.write(self.style.SUCCESS(f'✅ Migrated: {original_name} -> {cloudinary_path}'))
                 
-                # Clean up local file if requested
-                if self.cleanup:
-                    try:
-                        os.remove(local_path)
-                        self.stdout.write(f'🗑️  Removed local file: {local_path}')
-                    except Exception as e:
-                        self.stdout.write(self.style.WARNING(f'⚠️  Could not remove local file: {e}'))
+                # Note: We don't clean up local files in this version since we're using storage backends
                         
                 successful_migrations += 1
                 
@@ -200,21 +194,27 @@ class Command(BaseCommand):
             try:
                 # Get the current file path
                 current_file = club.logo
-                local_path = current_file.path if hasattr(current_file, 'path') else None
                 
-                if not local_path or not os.path.exists(local_path):
-                    self.stdout.write(self.style.WARNING(f'⚠️  Local file not found: {current_file.name}'))
+                # Check if file exists using the current storage
+                if not current_file or not current_file.name:
+                    self.stdout.write(self.style.WARNING(f'⚠️  No logo file for club'))
                     failed_migrations += 1
                     continue
-                    
+                
                 if self.dry_run:
-                    self.stdout.write(f'🔍 [DRY RUN] Would migrate: {local_path} -> Cloudinary')
+                    self.stdout.write(f'🔍 [DRY RUN] Would migrate: {current_file.name} -> Cloudinary')
                     successful_migrations += 1
                     continue
                     
-                # Read the file content
-                with open(local_path, 'rb') as f:
-                    file_content = f.read()
+                # Read the file content using Django's storage system
+                try:
+                    # Use the storage backend to read the file
+                    file_content = current_file.read()
+                    current_file.seek(0)  # Reset file pointer
+                except Exception as e:
+                    self.stdout.write(self.style.WARNING(f'⚠️  Could not read file {current_file.name}: {e}'))
+                    failed_migrations += 1
+                    continue
                     
                 # Create a ContentFile
                 content_file = ContentFile(file_content)
@@ -229,13 +229,7 @@ class Command(BaseCommand):
                 
                 self.stdout.write(self.style.SUCCESS(f'✅ Migrated: {original_name} -> {cloudinary_path}'))
                 
-                # Clean up local file if requested
-                if self.cleanup:
-                    try:
-                        os.remove(local_path)
-                        self.stdout.write(f'🗑️  Removed local file: {local_path}')
-                    except Exception as e:
-                        self.stdout.write(self.style.WARNING(f'⚠️  Could not remove local file: {e}'))
+                # Note: We don't clean up local files in this version since we're using storage backends
                         
                 successful_migrations += 1
                 
