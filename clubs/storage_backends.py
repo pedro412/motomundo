@@ -47,6 +47,7 @@ class CloudinaryImageStorage(BaseImageStorage):
     """
     
     def __init__(self):
+        self.backend_type = 'cloudinary'
         try:
             from cloudinary_storage.storage import MediaCloudinaryStorage
             self.storage = MediaCloudinaryStorage()
@@ -79,6 +80,7 @@ class S3ImageStorage(BaseImageStorage):
     """
     
     def __init__(self):
+        self.backend_type = 's3'
         try:
             from storages.backends.s3boto3 import S3Boto3Storage
             
@@ -117,6 +119,7 @@ class LocalImageStorage(BaseImageStorage):
     """
     
     def __init__(self):
+        self.backend_type = 'local'
         from django.core.files.storage import default_storage
         self.storage = default_storage
         logger.info("Local storage initialized")
