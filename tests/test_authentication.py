@@ -8,6 +8,7 @@ from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 from rest_framework import status
 from clubs.models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
+from .test_utils import create_test_image
 import json
 
 
@@ -187,15 +188,18 @@ class PermissionIntegrationTestCase(APITestCase):
         token = response.json()['access']
         
         self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+        
+        # Create member data with file upload
         member_data = {
             'first_name': 'Test',
             'last_name': 'Member', 
             'chapter': self.chapter.id,
-            'role': 'rider',
+            'role': 'member',
             'nickname': 'TestRider',
-            'user': None
+            'user': '',
+            'profile_picture': create_test_image('test_member_api.jpg')
         }
-        response = self.client.post('/api/members/', member_data, format='json')
+        response = self.client.post('/api/members/', member_data, format='multipart')
         if response.status_code != status.HTTP_201_CREATED:
             print(f"Member creation failed with status {response.status_code}")
             print(f"Response: {response.json()}")

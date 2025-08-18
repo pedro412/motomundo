@@ -9,6 +9,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from clubs.models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
 import json
+from .test_utils import create_test_image
 
 
 class MemberProfileFeatureTestCase(APITestCase):
@@ -105,7 +106,8 @@ class MemberProfileFeatureTestCase(APITestCase):
             last_name='Rodriguez',
             nickname='El Presidente',
             chapter=nuevo_laredo,
-            role='president'
+            role='president',
+            profile_picture=create_test_image('carlos.jpg')
         )
         print("  ✓ Carlos created as: president in Nuevo Laredo (Alterados MC)")
         
@@ -116,7 +118,8 @@ class MemberProfileFeatureTestCase(APITestCase):
             last_name='Rodriguez',
             nickname='Hermano Carlos',
             chapter=monterrey_hermanos,
-            role='secretary'
+            role='secretary',
+            profile_picture=create_test_image('carlos.jpg')
         )
         print("  ✓ Carlos added as: secretary in Central (Hermanos MC)")
         
@@ -127,7 +130,8 @@ class MemberProfileFeatureTestCase(APITestCase):
             last_name='Rodriguez',
             nickname='Road Captain',
             chapter=highway_chapter,
-            role='rider'
+            role='member',
+            profile_picture=create_test_image('carlos.jpg')
         )
         print("  ✓ Carlos added as: rider in Highway Chapter (Riders United MC)")
         
@@ -138,7 +142,8 @@ class MemberProfileFeatureTestCase(APITestCase):
             last_name='Santos',
             nickname='El Guerrero',
             chapter=nuevo_laredo,
-            role='vice_president'
+            role='vice_president',
+            profile_picture=create_test_image('miguel.jpg')
         )
         print("  ✓ Miguel created as: vice_president in Nuevo Laredo (Alterados MC)")
         
@@ -148,7 +153,8 @@ class MemberProfileFeatureTestCase(APITestCase):
             last_name='Morales',
             nickname='Ghost Rider',
             chapter=nuevo_laredo,
-            role='rider'
+            role='member',
+            profile_picture=create_test_image('roberto.jpg')
         )
         
         # ================================================================
@@ -272,7 +278,7 @@ class MemberProfileFeatureTestCase(APITestCase):
         roles = [m['role'] for m in carlos_profile['all_memberships']]
         self.assertIn('president', roles)
         self.assertIn('secretary', roles)
-        self.assertIn('rider', roles)
+        self.assertIn('member', roles)
         print(f"✓ Different roles verified: {', '.join(roles)}")
         
         # ================================================================

@@ -8,6 +8,7 @@ from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 from rest_framework import status
 from clubs.models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
+from .test_utils import create_test_image
 import json
 from datetime import date
 
@@ -200,10 +201,11 @@ class CompleteFunctionalTestCase(APITestCase):
             'chapter': chapter1_id,
             'phone': '+1-415-555-0101',
             'emergency_contact': 'Maria Rodriguez - Wife',
-            'user': None  # Explicitly set user to None since it's optional
+            'user': '',  # Empty string instead of None for API
+            'profile_picture': create_test_image('mike_rodriguez_func.jpg')
         }
         
-        response = self.client.post('/api/members/', member1_data, format='json')
+        response = self.client.post('/api/members/', member1_data, format='multipart')
         if response.status_code != status.HTTP_201_CREATED:
             print(f"ERROR: Member creation failed with {response.status_code}: {response.data}")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -219,27 +221,31 @@ class CompleteFunctionalTestCase(APITestCase):
             'role': 'vice_president',
             'chapter': chapter1_id,
             'phone': '+1-415-555-0102',
-            'user': None  # Explicitly set user to None since it's optional
+            'profile_picture': create_test_image('sarah_thompson.jpg'),
+            'user': ''
         }
         
-        response = self.client.post('/api/members/', member2_data, format='json')
+        response = self.client.post('/api/members/', member2_data, format='multipart')
+        if response.status_code != status.HTTP_201_CREATED:
+            print(f"ERROR: Member 2 creation failed with {response.status_code}: {response.data}")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         member2 = response.json()
         member2_id = member2['id']
         print(f"✓ Member 2 created: {member2['first_name']} {member2['last_name']} ({member2['role']})")
         
-        # Member 3: David Chen (Rider)
+        # Member 3: David Chen (Member)
         member3_data = {
             'first_name': 'David',
             'last_name': 'Chen',
             'nickname': 'Dragon Dave',
-            'role': 'rider',
+            'role': 'member',
             'chapter': chapter1_id,
             'phone': '+1-415-555-0103',
-            'user': None  # Explicitly set user to None since it's optional
+            'profile_picture': create_test_image('david_chen.jpg'),
+            'user': ''
         }
         
-        response = self.client.post('/api/members/', member3_data, format='json')
+        response = self.client.post('/api/members/', member3_data, format='multipart')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         member3 = response.json()
         member3_id = member3['id']
@@ -253,12 +259,12 @@ class CompleteFunctionalTestCase(APITestCase):
         # 4.1 Chapter admin changes member roles
         print("4.1 Chapter admin changes member roles...")
         
-        # Promote David from rider to secretary
+        # Promote David from member to secretary
         role_change1 = {'role': 'secretary'}
         response = self.client.patch(f'/api/members/{member3_id}/', role_change1, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         updated_member3 = response.json()
-        print(f"✓ {updated_member3['first_name']} {updated_member3['last_name']} promoted from rider to {updated_member3['role']}")
+        print(f"✓ {updated_member3['first_name']} {updated_member3['last_name']} promoted from member to {updated_member3['role']}")
         
         # Change Sarah from vice_president to treasurer
         role_change2 = {'role': 'treasurer'}
@@ -316,7 +322,7 @@ class CompleteFunctionalTestCase(APITestCase):
         print("\n--- PHASE 6: MULTI-CLUB USER MEMBERSHIPS ---")
         
         # 6.1 Add multi-club user to Club A as rider
-        print("6.1 Adding multi-club user to Club A as rider...")
+        print("6.1 Adding multi-club user to Club A as member...")
         # Switch to chapter admin to add member to their chapter
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + chapter_admin_token)
         
@@ -324,13 +330,16 @@ class CompleteFunctionalTestCase(APITestCase):
             'first_name': 'Bob',
             'last_name': 'Wilson',
             'nickname': 'Wanderer Bob',
-            'role': 'rider',
+            'role': 'member',
             'chapter': chapter1_id,
             'user': User.objects.get(username='multiuser').id,
-            'phone': '+1-415-555-0200'
+            'phone': '+1-415-555-0200',
+            'profile_picture': create_test_image('bob_wilson_a.jpg')
         }
         
-        response = self.client.post('/api/members/', multiuser_member_a_data, format='json')
+        response = self.client.post('/api/members/', multiuser_member_a_data, format='multipart')
+        if response.status_code != status.HTTP_201_CREATED:
+            print(f"ERROR: Multiuser member A creation failed with {response.status_code}: {response.data}")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         multiuser_member_a = response.json()
         multiuser_member_a_id = multiuser_member_a['id']
@@ -348,10 +357,11 @@ class CompleteFunctionalTestCase(APITestCase):
             'role': 'secretary',
             'chapter': chapter_b_id,
             'user': User.objects.get(username='multiuser').id,
-            'phone': '+1-415-555-0200'
+            'phone': '+1-415-555-0200',
+            'profile_picture': create_test_image('bob_wilson_b.jpg')
         }
         
-        response = self.client.post('/api/members/', multiuser_member_b_data, format='json')
+        response = self.client.post('/api/members/', multiuser_member_b_data, format='multipart')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         multiuser_member_b = response.json()
         multiuser_member_b_id = multiuser_member_b['id']
@@ -376,9 +386,9 @@ class CompleteFunctionalTestCase(APITestCase):
         
         # Verify different roles
         roles = [m.role for m in multiuser_memberships]
-        self.assertIn('rider', roles)
+        self.assertIn('member', roles)
         self.assertIn('secretary', roles)
-        print(f"✓ Role verification: Club A = rider, Club B = secretary")
+        print(f"✓ Role verification: Club A = member, Club B = secretary")
         
         # 7.2 Verify permissions still work
         print("7.2 Verifying permissions...")
@@ -405,7 +415,7 @@ class CompleteFunctionalTestCase(APITestCase):
         unauthorized_member_data = {
             'first_name': 'Unauthorized',
             'last_name': 'Member',
-            'role': 'rider',
+            'role': 'member',
             'chapter': chapter2_id,  # Different chapter
             'user': None  # Explicitly set user to None since it's optional
         }
@@ -493,7 +503,7 @@ class CompleteFunctionalTestCase(APITestCase):
         multiuser_memberships_final = Member.objects.filter(user=multiuser)
         self.assertEqual(multiuser_memberships_final.count(), 2)
         roles_final = [m.role for m in multiuser_memberships_final]
-        self.assertIn('rider', roles_final)
+        self.assertIn('member', roles_final)
         self.assertIn('secretary', roles_final)
         print("✓ Requirement 4: User belongs to two clubs with different roles")
         
@@ -536,7 +546,8 @@ class MultiClubScenarioTestCase(APITestCase):
             last_name='Rodriguez', 
             nickname='El Hermano',
             chapter=monterrey,
-            role='secretary'
+            role='secretary',
+            profile_picture=create_test_image('carlos.jpg')
         )
         
         # Test API access as Carlos
@@ -578,7 +589,8 @@ class MultiClubScenarioTestCase(APITestCase):
             first_name='John',
             last_name='Doe',
             chapter=chapter,
-            role='rider'
+            role='member',
+            profile_picture=create_test_image('john.jpg')
         )
         
         # Try to create duplicate member (same name in same chapter)
@@ -587,7 +599,8 @@ class MultiClubScenarioTestCase(APITestCase):
                 first_name='John',
                 last_name='Doe', 
                 chapter=chapter,
-                role='secretary'
+                role='secretary',
+            profile_picture=create_test_image('john.jpg')
             )
         print("✓ Cannot create duplicate members in same chapter")
         
@@ -597,7 +610,8 @@ class MultiClubScenarioTestCase(APITestCase):
             first_name='John',
             last_name='Doe',
             chapter=other_chapter,
-            role='rider'
+            role='member',
+            profile_picture=create_test_image('john.jpg')
         )
         
         self.assertNotEqual(member1.id, member2.id)

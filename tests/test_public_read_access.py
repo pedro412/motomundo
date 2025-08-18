@@ -7,6 +7,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from django.contrib.auth.models import User
 from clubs.models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
+from .test_utils import create_test_image
 
 
 class PublicReadAccessTestCase(APITestCase):
@@ -43,7 +44,8 @@ class PublicReadAccessTestCase(APITestCase):
             last_name='Doe',
             nickname='JD',
             chapter=self.chapter,
-            role='rider'
+            role='member',
+            profile_picture=create_test_image('john_doe.jpg')
         )
 
     def test_clubs_public_read_access(self):

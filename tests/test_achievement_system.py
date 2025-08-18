@@ -12,6 +12,7 @@ from rest_framework.authtoken.models import Token
 from achievements.models import Achievement, UserAchievement, AchievementProgress
 from achievements.services import AchievementService, AchievementTrigger
 from clubs.models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
+from .test_utils import create_test_image
 
 
 class AchievementModelTests(TestCase):
@@ -107,7 +108,8 @@ class AchievementServiceTests(TestCase):
             chapter=self.chapter,
             first_name='Test',
             last_name='Member',
-            role='president'
+            role='president',
+            profile_picture=create_test_image('test_member.jpg')
         )
         
         # Create achievements using the management command setup
@@ -151,7 +153,8 @@ class AchievementServiceTests(TestCase):
             chapter=second_chapter,
             first_name='Multi',
             last_name='Member',
-            role='rider'
+            role='member',
+            profile_picture=create_test_image('multi_member.jpg')
         )
         
         # Debug: Check memberships before achievement check
@@ -220,7 +223,8 @@ class AchievementTriggerTests(TestCase):
             chapter=self.chapter,
             first_name='Test',
             last_name='User',
-            role='rider'
+            role='member',
+            profile_picture=create_test_image('test_user.jpg')
         )
         
         # Trigger achievement check
@@ -245,7 +249,8 @@ class AchievementTriggerTests(TestCase):
             chapter=self.chapter,
             first_name='Role',
             last_name='Tester',
-            role='rider'
+            role='member',
+            profile_picture=create_test_image('role_tester.jpg')
         )
         
         # Check initial achievements
@@ -409,7 +414,8 @@ class AchievementIntegrationTests(TestCase):
             chapter=chapter,
             first_name='Integration',
             last_name='Tester',
-            role='president'
+            role='president',
+            profile_picture=create_test_image('integration_tester.jpg')
         )
         
         # 5. Check achievements again

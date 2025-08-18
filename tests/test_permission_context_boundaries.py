@@ -7,6 +7,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from django.contrib.auth.models import User
 from clubs.models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
+from .test_utils import create_test_image
 
 
 class PermissionContextBoundariesTestCase(APITestCase):
@@ -98,7 +99,8 @@ class PermissionContextBoundariesTestCase(APITestCase):
             last_name='Admin', 
             nickname='Thunder Alice',
             chapter=self.chapter_b1,
-            role='rider'
+            role='member',
+            profile_picture=create_test_image('alice.jpg')
         )
         
         # Create some existing members in both clubs for testing
@@ -107,7 +109,8 @@ class PermissionContextBoundariesTestCase(APITestCase):
             last_name='Rider',
             nickname='JR',
             chapter=self.chapter_a1,
-            role='rider'
+            role='member',
+            profile_picture=create_test_image('john.jpg')
         )
         
         self.member_club_b = Member.objects.create(
@@ -115,7 +118,8 @@ class PermissionContextBoundariesTestCase(APITestCase):
             last_name='Steel',
             nickname='Steel Mike',
             chapter=self.chapter_b1,
-            role='rider'
+            role='member',
+            profile_picture=create_test_image('mike.jpg')
         )
 
     def test_club_admin_cannot_modify_other_club_where_only_member(self):
@@ -164,10 +168,11 @@ class PermissionContextBoundariesTestCase(APITestCase):
             'last_name': 'Member',
             'nickname': 'Newbie',
             'chapter': self.chapter_a1.id,
-            'role': 'rider',
-            'user': None
+            'role': 'member',
+            'user': '',
+            'profile_picture': create_test_image('new_member.jpg')
         }
-        response = self.client.post('/api/members/', member_a_data, format='json')
+        response = self.client.post('/api/members/', member_a_data, format='multipart')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         print(f"✓ Member creation in Club A: SUCCESS (201) - Can create members in own club")
         
