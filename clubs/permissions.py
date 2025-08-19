@@ -7,6 +7,7 @@ class IsClubAdminOrPublicReadOnly(permissions.BasePermission):
     """
     Custom permission to allow club admins to edit clubs they manage,
     and read-only access for all users (including unauthenticated).
+    For club creation: any authenticated user can create a club (they become admin automatically).
     """
     
     def has_permission(self, request, view):
@@ -18,7 +19,11 @@ class IsClubAdminOrPublicReadOnly(permissions.BasePermission):
         if not request.user.is_authenticated:
             return False
         
-        # Write permissions only for club admins, chapter admins, or superusers
+        # For club creation (POST to clubs endpoint), allow any authenticated user
+        if request.method == 'POST' and view.basename == 'club':
+            return True
+        
+        # For other write operations, require admin permissions
         is_club_admin = ClubAdmin.objects.filter(user=request.user).exists()
         is_chapter_admin = ChapterAdmin.objects.filter(user=request.user).exists()
         

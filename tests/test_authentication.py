@@ -206,13 +206,13 @@ class PermissionIntegrationTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         print("✓ Chapter admin can create members")
         
-        # Test regular user cannot create clubs
+        # Test regular user can now create clubs (and becomes admin automatically)
         login_data = {'username': 'regular', 'password': 'pass'}
         response = self.client.post('/api/auth/jwt/login/', login_data)
         token = response.json()['access']
         
         self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
-        club_data = {'name': 'Unauthorized Club', 'description': 'Should fail'}
+        club_data = {'name': 'New User Club', 'description': 'Regular user can create clubs now'}
         response = self.client.post('/api/clubs/', club_data)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        print("✓ Regular user cannot create clubs")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        print("✓ Regular user can create clubs (becomes admin automatically)")

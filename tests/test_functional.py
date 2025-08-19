@@ -104,11 +104,9 @@ class CompleteFunctionalTestCase(APITestCase):
             'foundation_date': '2020-01-15'
         }
         
-        # Note: Only superusers can create clubs in our permission system
-        # So let's make the owner a superuser temporarily or adjust permissions
+        # Note: Users can now create clubs and automatically become admins
+        # No need to make them superuser anymore
         owner_user = User.objects.get(username='clubowner')
-        owner_user.is_superuser = True
-        owner_user.save()
         
         response = self.client.post('/api/clubs/', club_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -116,13 +114,8 @@ class CompleteFunctionalTestCase(APITestCase):
         club_a_id = club_a['id']
         print(f"✓ Club A created: {club_a['name']}")
         
-        # Assign club owner as club admin
-        ClubAdmin.objects.create(
-            user=owner_user,
-            club_id=club_a_id,
-            created_by=superuser
-        )
-        print(f"✓ Club owner assigned as admin of {club_a['name']}")
+        # Club owner is automatically assigned as club admin (no manual creation needed)
+        print(f"✓ Club owner automatically assigned as admin of {club_a['name']}")
         
         # ================================================================
         # PHASE 2: CHAPTER CREATION AND ADMIN ASSIGNMENT  
@@ -295,13 +288,8 @@ class CompleteFunctionalTestCase(APITestCase):
         club_b_id = club_b['id']
         print(f"✓ Club B created: {club_b['name']}")
         
-        # Assign club owner as admin of second club too
-        ClubAdmin.objects.create(
-            user=owner_user,
-            club_id=club_b_id,
-            created_by=superuser
-        )
-        print(f"✓ Club owner assigned as admin of {club_b['name']}")
+        # Club owner is automatically assigned as admin (no manual creation needed)
+        print(f"✓ Club owner automatically assigned as admin of {club_b['name']}")
         
         # Create chapter for Club B
         chapter_b_data = {

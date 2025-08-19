@@ -1,3 +1,5 @@
+import secrets
+import string
 from django.db import models
 from django.db.models.functions import Lower
 from django.core.exceptions import ValidationError
@@ -16,7 +18,7 @@ def get_image_storage():
 
 
 class Club(models.Model):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     foundation_date = models.DateField(null=True, blank=True)
     logo = models.ImageField(
@@ -32,6 +34,15 @@ class Club(models.Model):
 
     def __str__(self):
         return self.name
+    
+    @property 
+    def total_members(self):
+        """Count all active members across all chapters in this club"""
+        from django.db.models import Q
+        return Member.objects.filter(
+            chapter__club=self,
+            is_active=True
+        ).count()
 
 
 class Chapter(models.Model):
@@ -95,10 +106,16 @@ class Member(models.Model):
         help_text="Member profile picture - automatically optimized and stored in the cloud"
     )
     joined_at = models.DateField(null=True, blank=True)
+    
+    # User linkage and claim flow
     user = models.ForeignKey(
         to='auth.User', null=True, blank=True, on_delete=models.SET_NULL,
         help_text="Link to a registered user, if applicable.",
         related_name='memberships'
+    )
+    claim_code = models.CharField(
+        max_length=50, unique=True, null=True, blank=True,
+        help_text="Unique code that allows a user to claim this member profile"
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -121,6 +138,20 @@ class Member(models.Model):
     def __str__(self):
         full_name = f"{self.first_name} {self.last_name}".strip()
         return f"{full_name} ({self.role}) - {self.chapter.name}"
+    
+    @property
+    def club(self):
+        """Get the club this member belongs to through their chapter"""
+        return self.chapter.club if self.chapter else None
+    
+    def generate_claim_code(self):
+        """Generate a unique claim code for this member"""
+        while True:
+            code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+            if not Member.objects.filter(claim_code=code).exists():
+                self.claim_code = code
+                break
+        return self.claim_code
 
     def clean(self):
         # Normalize names and enforce case-insensitive uniqueness within a chapter

@@ -44,6 +44,41 @@ class ClubViewSet(viewsets.ModelViewSet):
 
         return get_user_manageable_clubs(self.request.user).order_by('name')
 
+    def perform_create(self, serializer):
+        """
+        Automatically make the creator a club admin and first member (president) when creating a club
+        """
+        club = serializer.save()
+        
+        # Create ClubAdmin entry for the creator
+        ClubAdmin.objects.create(
+            user=self.request.user,
+            club=club,
+            created_by=self.request.user
+        )
+        
+        # Create a default "Main Chapter" for the club
+        # This serves as the default chapter for clubs that don't use chapters
+        from .models import Chapter, Member
+        default_chapter = Chapter.objects.create(
+            name="Main Chapter",
+            description=f"Main chapter of {club.name}",
+            club=club
+        )
+        
+        # Create member entry for the creator as president
+        from tests.test_utils import create_test_image
+        Member.objects.create(
+            chapter=default_chapter,
+            first_name=self.request.user.first_name or self.request.user.username,
+            last_name=self.request.user.last_name or "",
+            nickname=f"{self.request.user.username} (Founder)",
+            role='president',
+            user=self.request.user,
+            profile_picture=create_test_image(f'{self.request.user.username}_founder.jpg'),
+            joined_at=club.foundation_date or club.created_at.date()
+        )
+
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def my(self, request):
         """
@@ -277,6 +312,44 @@ class MemberViewSet(viewsets.ModelViewSet):
         }
         
         return Response(user_profile)
+
+    @action(detail=False, methods=['post'], url_path='claim-membership')
+    def claim_membership(self, request):
+        """
+        Allow a user to claim a member profile using a claim code
+        POST /api/members/claim-membership/
+        Body: {"claim_code": "ABC12345"}
+        """
+        claim_code = request.data.get('claim_code')
+        if not claim_code:
+            return Response({
+                'error': 'claim_code is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            member = Member.objects.get(claim_code=claim_code, user__isnull=True)
+        except Member.DoesNotExist:
+            return Response({
+                'error': 'Invalid claim code or member already linked to a user'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Link the member to the current user
+        member.user = request.user
+        member.claim_code = None  # Clear the claim code once used
+        member.save()
+        
+        return Response({
+            'success': True,
+            'message': f'Successfully claimed membership for {member.first_name} {member.last_name}',
+            'member': {
+                'id': member.id,
+                'name': f"{member.first_name} {member.last_name}".strip(),
+                'nickname': member.nickname,
+                'role': member.role,
+                'club': member.club.name if member.club else None,
+                'chapter': member.chapter.name if member.chapter else None
+            }
+        }, status=status.HTTP_200_OK)
 
 
 class ClubAdminViewSet(viewsets.ModelViewSet):

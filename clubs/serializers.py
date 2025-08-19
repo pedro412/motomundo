@@ -21,6 +21,24 @@ class ClubSerializer(serializers.ModelSerializer):
             'id', 'name', 'description', 'foundation_date', 'logo', 'logo_url', 'website',
             'featured_members', 'created_at', 'updated_at', 'total_members'
         ]
+    
+    def validate_name(self, value):
+        """
+        Validate that club name is unique (case-insensitive)
+        """
+        # Check for existing clubs with the same name (case-insensitive)
+        existing = Club.objects.filter(name__iexact=value)
+        
+        # If this is an update, exclude the current instance
+        if self.instance:
+            existing = existing.exclude(pk=self.instance.pk)
+        
+        if existing.exists():
+            raise serializers.ValidationError(
+                f"A club with the name '{value}' already exists. Please choose a different name."
+            )
+        
+        return value
 
     def to_representation(self, instance):
         """
@@ -147,22 +165,34 @@ class ChapterSerializer(serializers.ModelSerializer):
 
 class MemberSerializer(serializers.ModelSerializer):
     chapter = serializers.PrimaryKeyRelatedField(queryset=Chapter.objects.all())
-    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False, allow_null=True)
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False, allow_null=True, allow_empty=True)
+    club = serializers.SerializerMethodField()  # Read-only field that gets club from chapter
+    claim_code = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     class Meta:
         model = Member
         fields = [
-            'id', 'chapter', 'first_name', 'last_name', 'nickname', 'date_of_birth', 'profile_picture',
-            'role', 'joined_at', 'user', 'is_active', 'created_at', 'updated_at'
+            'id', 'chapter', 'club', 'first_name', 'last_name', 'nickname', 'date_of_birth', 'profile_picture',
+            'role', 'member_type', 'national_role', 'joined_at', 'user', 'claim_code', 'is_active', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'club']
         extra_kwargs = {
-            'user': {'required': False, 'allow_null': True},
+            'user': {'required': False, 'allow_null': True, 'allow_empty': True},
+            'claim_code': {'write_only': True}  # Don't expose claim codes in responses for security
         }
 
+    def get_club(self, obj):
+        """Get club information through the chapter relationship"""
+        if obj.chapter:
+            return {
+                'id': obj.chapter.club.id,
+                'name': obj.chapter.club.name
+            }
+        return None
+
     def validate(self, data):
-        # Ensure user field is not required
-        if 'user' not in data:
+        # Ensure user field is not required and defaults to None
+        if 'user' not in data or data.get('user') == '':
             data['user'] = None
         return data
 
