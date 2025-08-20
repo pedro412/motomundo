@@ -1,4 +1,3 @@
-````markdown
 # 🏍️ Motomundo - Motorcycle Club Management System
 
 > **Production-ready motorcycle club management platform with multi-club membership, role-based permissions, and comprehensive member profiles.**
@@ -853,4 +852,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ---
 
 _Built with ❤️ for the motorcycle community by riders, for riders._
-````
