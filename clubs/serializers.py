@@ -165,7 +165,7 @@ class ChapterSerializer(serializers.ModelSerializer):
 
 class MemberSerializer(serializers.ModelSerializer):
     chapter = serializers.PrimaryKeyRelatedField(queryset=Chapter.objects.all())
-    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False, allow_null=True, allow_empty=True)
+    # Make user field optional - don't declare it explicitly, let it use model defaults
     club = serializers.SerializerMethodField()  # Read-only field that gets club from chapter
     claim_code = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
@@ -177,7 +177,7 @@ class MemberSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at', 'club']
         extra_kwargs = {
-            'user': {'required': False, 'allow_null': True, 'allow_empty': True},
+            'user': {'required': False, 'allow_null': True},
             'claim_code': {'write_only': True}  # Don't expose claim codes in responses for security
         }
 
@@ -192,8 +192,9 @@ class MemberSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         # Ensure user field is not required and defaults to None
-        if 'user' not in data or data.get('user') == '':
-            data['user'] = None
+        # Remove user field from data if it's empty string or not provided
+        if 'user' not in data or data.get('user') == '' or data.get('user') is None:
+            data.pop('user', None)  # Remove it entirely so it defaults to null
         return data
 
 
