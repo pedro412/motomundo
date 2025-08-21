@@ -46,7 +46,7 @@ class ClubViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """
-        Automatically make the creator a club admin and first member (president) when creating a club
+        Automatically make the creator a club admin when creating a club
         """
         club = serializer.save()
         
@@ -55,28 +55,6 @@ class ClubViewSet(viewsets.ModelViewSet):
             user=self.request.user,
             club=club,
             created_by=self.request.user
-        )
-        
-        # Create a default "Main Chapter" for the club
-        # This serves as the default chapter for clubs that don't use chapters
-        from .models import Chapter, Member
-        default_chapter = Chapter.objects.create(
-            name="Main Chapter",
-            description=f"Main chapter of {club.name}",
-            club=club
-        )
-        
-        # Create member entry for the creator as president
-        from tests.test_utils import create_test_image
-        Member.objects.create(
-            chapter=default_chapter,
-            first_name=self.request.user.first_name or self.request.user.username,
-            last_name=self.request.user.last_name or "",
-            nickname=f"{self.request.user.username} (Founder)",
-            role='president',
-            user=self.request.user,
-            profile_picture=create_test_image(f'{self.request.user.username}_founder.jpg'),
-            joined_at=club.foundation_date or club.created_at.date()
         )
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
