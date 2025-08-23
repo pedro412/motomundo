@@ -80,7 +80,7 @@ def reverse_foreign_key_update(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clubs', '0023_update_geography_references'),
+        ('clubs', '0023_add_chapter_location'),
         ('geography', '0002_transfer_data_from_clubs'),  # Ensure geography data exists
     ]
 
