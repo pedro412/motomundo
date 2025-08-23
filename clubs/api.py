@@ -5,9 +5,14 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Q
+from django.utils import timezone
 
-from .models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
-from .serializers import ClubSerializer, ChapterSerializer, MemberSerializer, ClubAdminSerializer, ChapterAdminSerializer
+from .models import Club, Chapter, Member, ClubAdmin, ChapterAdmin, ChapterJoinRequest
+from .serializers import (
+    ClubSerializer, ChapterSerializer, MemberSerializer, 
+    ClubAdminSerializer, ChapterAdminSerializer, ChapterJoinRequestSerializer
+)
 from .permissions import (
     IsClubAdminOrReadOnly, 
     IsClubAdminOrPublicReadOnly,
@@ -125,9 +130,40 @@ class ChapterViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """
-        Set the creator when creating a chapter
+        For non-superusers, create a join request instead of directly creating a chapter
         """
-        serializer.save()
+        # Only superusers can create chapters directly
+        if self.request.user.is_superuser:
+            serializer.save(owner=self.request.user)
+        else:
+            # For regular users, create a join request instead
+            club = serializer.validated_data.get('club')
+            
+            # Check if club accepts new chapters
+            if not club.accepts_new_chapters:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("This club is not accepting new chapters at this time.")
+            
+            # Create a join request instead of a chapter
+            from .models import ChapterJoinRequest
+            join_request = ChapterJoinRequest.objects.create(
+                club=club,
+                requested_by=self.request.user,
+                proposed_chapter_name=serializer.validated_data.get('name'),
+                city=serializer.validated_data.get('city', ''),
+                state=serializer.validated_data.get('state', ''),
+                state_new=serializer.validated_data.get('state_new'),
+                description=serializer.validated_data.get('description', ''),
+                reason=f"Chapter creation request via API",
+                estimated_members=1  # Default to 1 member (the creator)
+            )
+            
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({
+                'detail': 'Chapter creation request submitted for review.',
+                'join_request_id': join_request.id,
+                'status': 'pending'
+            })
 
 
 class MemberViewSet(viewsets.ModelViewSet):
@@ -413,3 +449,196 @@ class ChapterAdminViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+
+# ============================================================================
+# DISCOVERY PLATFORM API ENDPOINTS
+# ============================================================================
+
+class ClubDiscoveryViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Public API for discovering clubs - NO AUTH REQUIRED
+    This endpoint provides public access to club information for discovery purposes.
+    """
+    
+    serializer_class = ClubSerializer
+    permission_classes = []  # Public access
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['club_type', 'country', 'primary_state']
+    search_fields = ['name', 'description', 'primary_state']
+    ordering_fields = ['name', 'founded_year', 'total_members', 'total_chapters']
+    ordering = ['name']
+    
+    def get_queryset(self):
+        """Return only public clubs with aggregated data"""
+        return Club.objects.filter(is_public=True).select_related().prefetch_related(
+            'chapters__members'
+        )
+    
+    @action(detail=False, methods=['get'])
+    def by_location(self, request):
+        """Get clubs grouped by geographic location"""
+        clubs_by_location = {}
+        
+        # Get filter parameters
+        country = request.query_params.get('country', 'Mexico')
+        state = request.query_params.get('state', None)
+        
+        queryset = self.get_queryset().filter(country=country)
+        if state:
+            queryset = queryset.filter(
+                Q(primary_state__icontains=state) |
+                Q(chapters__state__icontains=state)
+            ).distinct()
+        
+        for club in queryset:
+            # Group by states
+            states = set()
+            if club.primary_state:
+                states.add(club.primary_state)
+            
+            # Add states from chapters
+            for chapter in club.chapters.filter(is_active=True, is_public=True):
+                if chapter.state:
+                    states.add(chapter.state)
+            
+            for state_name in states:
+                if state_name not in clubs_by_location:
+                    clubs_by_location[state_name] = []
+                
+                clubs_by_location[state_name].append({
+                    'id': club.id,
+                    'name': club.name,
+                    'club_type': club.get_club_type_display(),
+                    'total_chapters': club.total_chapters,
+                    'total_members': club.total_members,
+                    'founded_year': club.founded_year,
+                })
+        
+        return Response(clubs_by_location)
+    
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        """Get overall platform statistics"""
+        from django.db.models import Count, Sum
+        
+        stats = {
+            'total_clubs': Club.objects.filter(is_public=True).count(),
+            'total_chapters': Chapter.objects.filter(
+                club__is_public=True, 
+                is_active=True, 
+                is_public=True
+            ).count(),
+            'total_members': Member.objects.filter(
+                chapter__club__is_public=True,
+                chapter__is_active=True,
+                chapter__is_public=True,
+                is_active=True
+            ).count(),
+            'clubs_by_type': Club.objects.filter(
+                is_public=True
+            ).values('club_type').annotate(
+                count=Count('id')
+            ).order_by('club_type'),
+        }
+        
+        return Response(stats)
+
+
+class ChapterJoinRequestViewSet(viewsets.ModelViewSet):
+    """
+    API for managing chapter join requests
+    Admin-managed workflow for users requesting to create chapters
+    """
+    
+    serializer_class = ChapterJoinRequestSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ['status', 'club']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Return requests based on user permissions"""
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            # Staff can see all requests
+            return ChapterJoinRequest.objects.all()
+        else:
+            # Regular users can only see their own requests
+            return ChapterJoinRequest.objects.filter(requested_by=self.request.user)
+    
+    def perform_create(self, serializer):
+        """Set the requesting user when creating a request"""
+        serializer.save(requested_by=self.request.user)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def approve(self, request, pk=None):
+        """Approve a chapter join request (admin only)"""
+        if not (request.user.is_staff or request.user.is_superuser):
+            raise PermissionDenied("Only admins can approve chapter requests")
+        
+        join_request = self.get_object()
+        
+        if join_request.status != 'pending':
+            return Response(
+                {'error': 'Request is not pending'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update request status
+        join_request.status = 'approved'
+        join_request.reviewed_at = timezone.now()
+        join_request.admin_notes = request.data.get('admin_notes', '')
+        join_request.save()
+        
+        # Optionally auto-create the chapter
+        auto_create = request.data.get('auto_create_chapter', False)
+        if auto_create:
+            chapter = Chapter.objects.create(
+                club=join_request.club,
+                name=join_request.proposed_chapter_name,
+                description=join_request.description,
+                city=join_request.city,
+                state=join_request.state,
+                owner=join_request.requested_by,
+                is_active=True,
+                is_public=True,
+                accepts_new_members=True
+            )
+            
+            return Response({
+                'status': 'approved',
+                'chapter_created': True,
+                'chapter_id': chapter.id,
+                'message': 'Request approved and chapter created successfully'
+            })
+        
+        return Response({
+            'status': 'approved',
+            'chapter_created': False,
+            'message': 'Request approved successfully'
+        })
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def reject(self, request, pk=None):
+        """Reject a chapter join request (admin only)"""
+        if not (request.user.is_staff or request.user.is_superuser):
+            raise PermissionDenied("Only admins can reject chapter requests")
+        
+        join_request = self.get_object()
+        
+        if join_request.status != 'pending':
+            return Response(
+                {'error': 'Request is not pending'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update request status
+        join_request.status = 'rejected'
+        join_request.reviewed_at = timezone.now()
+        join_request.admin_notes = request.data.get('admin_notes', '')
+        join_request.save()
+        
+        return Response({
+            'status': 'rejected',
+            'message': 'Request rejected successfully'
+        })

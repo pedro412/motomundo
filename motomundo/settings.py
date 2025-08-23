@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.gis',  # PostGIS support
     'rest_framework',
     'rest_framework.authtoken',
     'rest_framework_simplejwt',
@@ -32,6 +33,7 @@ INSTALLED_APPS = [
     'cloudinary',
     
     # Project apps
+    'geography',
     'clubs',
     'achievements',
     'emails',
@@ -72,7 +74,7 @@ WSGI_APPLICATION = 'motomundo.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',  # PostGIS backend
         'NAME': os.environ.get('DJANGO_DB_NAME', 'motomundo'),
         'USER': os.environ.get('DJANGO_DB_USER', 'motomundo'),
         'PASSWORD': os.environ.get('DJANGO_DB_PASSWORD', 'motomundo'),

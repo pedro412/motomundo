@@ -159,11 +159,16 @@ class IsChapterAdminOrReadOnly(permissions.BasePermission):
 class CanCreateChapter(permissions.BasePermission):
     """
     Permission to check if a user can create chapters for a specific club
+    Only superusers can create chapters directly - others create join requests
     """
     
     def has_permission(self, request, view):
         if request.method != 'POST':
             return True
+        
+        # Only authenticated users can create join requests/chapters
+        if not request.user.is_authenticated:
+            return False
         
         # Check if user is trying to create a chapter
         if hasattr(view, 'get_serializer_class'):
@@ -171,10 +176,12 @@ class CanCreateChapter(permissions.BasePermission):
             if club_id:
                 try:
                     club = Club.objects.get(id=club_id)
-                    return (
-                        request.user.is_superuser or
-                        ClubAdmin.objects.filter(user=request.user, club=club).exists()
-                    )
+                    # For superusers, allow direct chapter creation
+                    if request.user.is_superuser:
+                        return True
+                    # For others, they can create join requests (handled in perform_create)
+                    # Check if club accepts new chapters
+                    return club.accepts_new_chapters
                 except Club.DoesNotExist:
                     return False
         

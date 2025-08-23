@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/auth/', include('clubs.auth_urls')),
     path('api/achievements/', include('achievements.urls')),  # Include achievement URLs with proper prefix
+    path('geography/', include('geography.urls')),  # Include geography URLs
     path('healthz', healthz),
 ]
 

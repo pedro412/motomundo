@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from rest_framework.test import APITestCase
 from rest_framework import status
-from clubs.models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
+from clubs.models import Club, Chapter, Member, ClubAdmin, ChapterAdmin, ChapterJoinRequest
 from clubs.permissions import (
     get_user_manageable_clubs,
     get_user_manageable_chapters,
@@ -628,3 +628,415 @@ class AuthenticationTests(APITestCase):
         
         # Verify token was deleted
         self.assertFalse(Token.objects.filter(user=user).exists())
+
+
+class DiscoveryPlatformModelTests(TestCase):
+    """Test new discovery platform model fields and functionality"""
+    
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123'
+        )
+        
+        # Create test club with new discovery fields
+        self.club = Club.objects.create(
+            name='Test Motorcycle Club',
+            description='A test motorcycle club',
+            club_type='mc',
+            country='Mexico',
+            primary_state='Campeche',
+            founded_year=2020,
+            is_public=True,
+            accepts_new_chapters=True,
+            contact_email='contact@testmc.com'
+        )
+        
+        # Create test chapter with new discovery fields
+        self.chapter = Chapter.objects.create(
+            club=self.club,
+            name='Test Chapter',
+            description='A test chapter',
+            city='Ciudad del Carmen',
+            state='Campeche',
+            owner=self.user,
+            is_active=True,
+            is_public=True,
+            accepts_new_members=True,
+            meeting_info='Weekly meetings on Fridays at 7 PM',
+            contact_email='chapter@testmc.com'
+        )
+
+    def test_club_discovery_fields(self):
+        """Test club discovery fields are properly set"""
+        self.assertEqual(self.club.club_type, 'mc')
+        self.assertEqual(self.club.country, 'Mexico')
+        self.assertEqual(self.club.primary_state, 'Campeche')
+        self.assertEqual(self.club.founded_year, 2020)
+        self.assertTrue(self.club.is_public)
+        self.assertTrue(self.club.accepts_new_chapters)
+        self.assertEqual(self.club.contact_email, 'contact@testmc.com')
+
+    def test_club_type_choices(self):
+        """Test club type choices validation"""
+        valid_types = ['mc', 'association', 'organization', 'riding_group']
+        
+        for club_type in valid_types:
+            club = Club(
+                name=f'Test {club_type} Club',
+                club_type=club_type
+            )
+            club.full_clean()  # Should not raise ValidationError
+
+    def test_club_stats_initialization(self):
+        """Test club stats are initialized to 0"""
+        new_club = Club.objects.create(name='New Club')
+        self.assertEqual(new_club.total_members, 0)
+        self.assertEqual(new_club.total_chapters, 0)
+
+    def test_chapter_discovery_fields(self):
+        """Test chapter discovery fields are properly set"""
+        self.assertEqual(self.chapter.city, 'Ciudad del Carmen')
+        self.assertEqual(self.chapter.state, 'Campeche')
+        self.assertEqual(self.chapter.owner, self.user)
+        self.assertTrue(self.chapter.is_active)
+        self.assertTrue(self.chapter.is_public)
+        self.assertTrue(self.chapter.accepts_new_members)
+        self.assertEqual(self.chapter.meeting_info, 'Weekly meetings on Fridays at 7 PM')
+        self.assertEqual(self.chapter.contact_email, 'chapter@testmc.com')
+
+    def test_chapter_can_manage_method(self):
+        """Test chapter can_manage method"""
+        self.assertTrue(self.chapter.can_manage(self.user))
+        
+        other_user = User.objects.create_user(
+            username='otheruser',
+            email='other@example.com',
+            password='testpass123'
+        )
+        self.assertFalse(self.chapter.can_manage(other_user))
+
+    def test_club_update_stats_method(self):
+        """Test club update_stats method"""
+        # Initially should be 0
+        self.assertEqual(self.club.total_chapters, 0)
+        self.assertEqual(self.club.total_members, 0)
+        
+        # Create a member
+        Member.objects.create(
+            chapter=self.chapter,
+            first_name='Test',
+            last_name='Member',
+            role='member',
+            is_active=True
+        )
+        
+        # Update stats
+        self.club.update_stats()
+        
+        self.assertEqual(self.club.total_chapters, 1)
+        self.assertEqual(self.club.total_members, 1)
+
+    def test_club_update_stats_with_inactive_chapter(self):
+        """Test club stats exclude inactive chapters"""
+        # Make chapter inactive
+        self.chapter.is_active = False
+        self.chapter.save()
+        
+        Member.objects.create(
+            chapter=self.chapter,
+            first_name='Test',
+            last_name='Member',
+            role='member',
+            is_active=True
+        )
+        
+        self.club.update_stats()
+        
+        # Should not count inactive chapters
+        self.assertEqual(self.club.total_chapters, 0)
+        self.assertEqual(self.club.total_members, 0)
+
+    def test_club_update_stats_with_inactive_members(self):
+        """Test club stats exclude inactive members"""
+        Member.objects.create(
+            chapter=self.chapter,
+            first_name='Active',
+            last_name='Member',
+            role='member',
+            is_active=True
+        )
+        
+        Member.objects.create(
+            chapter=self.chapter,
+            first_name='Inactive',
+            last_name='Member',
+            role='member',
+            is_active=False
+        )
+        
+        self.club.update_stats()
+        
+        self.assertEqual(self.club.total_chapters, 1)
+        self.assertEqual(self.club.total_members, 1)  # Only active member
+
+    def test_chapter_save_updates_club_stats(self):
+        """Test that saving a chapter triggers club stats update"""
+        initial_chapters = self.club.total_chapters
+        
+        # Create new chapter
+        Chapter.objects.create(
+            club=self.club,
+            name='Second Chapter',
+            owner=self.user
+        )
+        
+        # Refresh club from database
+        self.club.refresh_from_db()
+        
+        # Should have updated automatically
+        self.assertEqual(self.club.total_chapters, initial_chapters + 1)
+
+
+class ChapterJoinRequestModelTests(TestCase):
+    """Test ChapterJoinRequest model functionality"""
+    
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='requester',
+            email='requester@example.com',
+            password='testpass123'
+        )
+        
+        self.club = Club.objects.create(
+            name='Test Club',
+            accepts_new_chapters=True
+        )
+
+    def test_chapter_join_request_creation(self):
+        """Test creating a chapter join request"""
+        request = ChapterJoinRequest.objects.create(
+            club=self.club,
+            requested_by=self.user,
+            proposed_chapter_name='New Chapter',
+            city='Test City',
+            state='Test State',
+            description='A new chapter description',
+            reason='We want to join this awesome club',
+            estimated_members=5
+        )
+        
+        self.assertEqual(request.status, 'pending')
+        self.assertEqual(request.club, self.club)
+        self.assertEqual(request.requested_by, self.user)
+        self.assertEqual(request.proposed_chapter_name, 'New Chapter')
+        self.assertEqual(request.estimated_members, 5)
+
+    def test_chapter_join_request_str_representation(self):
+        """Test string representation of ChapterJoinRequest"""
+        request = ChapterJoinRequest.objects.create(
+            club=self.club,
+            requested_by=self.user,
+            proposed_chapter_name='New Chapter',
+            city='Test City',
+            state='Test State',
+            description='A new chapter description',
+            reason='We want to join this awesome club',
+            estimated_members=5
+        )
+        
+        expected_str = 'New Chapter - Test Club (pending)'
+        self.assertEqual(str(request), expected_str)
+
+    def test_chapter_join_request_status_choices(self):
+        """Test status choices validation"""
+        request = ChapterJoinRequest.objects.create(
+            club=self.club,
+            requested_by=self.user,
+            proposed_chapter_name='New Chapter',
+            city='Test City',
+            state='Test State',
+            description='A new chapter description',
+            reason='We want to join this awesome club',
+            estimated_members=5
+        )
+        
+        # Test valid status changes
+        valid_statuses = ['pending', 'approved', 'rejected']
+        
+        for status in valid_statuses:
+            request.status = status
+            request.full_clean()  # Should not raise ValidationError
+
+    def test_chapter_join_request_ordering(self):
+        """Test that requests are ordered by creation date (newest first)"""
+        request1 = ChapterJoinRequest.objects.create(
+            club=self.club,
+            requested_by=self.user,
+            proposed_chapter_name='First Chapter',
+            city='Test City',
+            state='Test State',
+            description='First description',
+            reason='First reason',
+            estimated_members=3
+        )
+        
+        request2 = ChapterJoinRequest.objects.create(
+            club=self.club,
+            requested_by=self.user,
+            proposed_chapter_name='Second Chapter',
+            city='Test City',
+            state='Test State',
+            description='Second description',
+            reason='Second reason',
+            estimated_members=4
+        )
+        
+        requests = ChapterJoinRequest.objects.all()
+        self.assertEqual(requests[0], request2)  # Newest first
+        self.assertEqual(requests[1], request1)
+
+
+class DiscoveryPlatformIntegrationTests(TestCase):
+    """Test integration between discovery platform models"""
+    
+    def setUp(self):
+        self.club_owner = User.objects.create_user(
+            username='club_owner',
+            email='owner@example.com',
+            password='testpass123'
+        )
+        
+        self.chapter_requester = User.objects.create_user(
+            username='requester',
+            email='requester@example.com',
+            password='testpass123'
+        )
+        
+        self.club = Club.objects.create(
+            name='Rocky Point Riders MC',
+            club_type='mc',
+            country='Mexico',
+            primary_state='Sonora',
+            founded_year=2010,
+            is_public=True,
+            accepts_new_chapters=True
+        )
+
+    def test_full_chapter_creation_workflow(self):
+        """Test complete workflow from join request to chapter creation"""
+        # Step 1: Create join request
+        join_request = ChapterJoinRequest.objects.create(
+            club=self.club,
+            requested_by=self.chapter_requester,
+            proposed_chapter_name='Ciudad del Carmen Chapter',
+            city='Ciudad del Carmen',
+            state='Campeche',
+            description='Chapter for Carmen riders',
+            reason='We have 8 active riders who want to join',
+            estimated_members=8
+        )
+        
+        self.assertEqual(join_request.status, 'pending')
+        
+        # Step 2: Approve request and create chapter
+        join_request.status = 'approved'
+        join_request.save()
+        
+        chapter = Chapter.objects.create(
+            club=self.club,
+            name=join_request.proposed_chapter_name,
+            city=join_request.city,
+            state=join_request.state,
+            description=join_request.description,
+            owner=join_request.requested_by,
+            is_active=True,
+            is_public=True
+        )
+        
+        # Step 3: Verify chapter was created correctly
+        self.assertEqual(chapter.name, 'Ciudad del Carmen Chapter')
+        self.assertEqual(chapter.city, 'Ciudad del Carmen')
+        self.assertEqual(chapter.state, 'Campeche')
+        self.assertEqual(chapter.owner, self.chapter_requester)
+        self.assertTrue(chapter.is_active)
+        self.assertTrue(chapter.is_public)
+        
+        # Step 4: Verify club stats updated
+        self.club.refresh_from_db()
+        self.assertEqual(self.club.total_chapters, 1)
+
+    def test_multi_chapter_club_stats(self):
+        """Test club stats with multiple chapters and members"""
+        # Create multiple chapters
+        chapter1 = Chapter.objects.create(
+            club=self.club,
+            name='Chapter 1',
+            city='City 1',
+            state='State 1',
+            owner=self.club_owner,
+            is_active=True
+        )
+        
+        chapter2 = Chapter.objects.create(
+            club=self.club,
+            name='Chapter 2',
+            city='City 2',
+            state='State 2',
+            owner=self.club_owner,
+            is_active=True
+        )
+        
+        # Create members in each chapter
+        Member.objects.create(
+            chapter=chapter1,
+            first_name='Member1',
+            last_name='Chapter1',
+            role='president',
+            is_active=True
+        )
+        
+        Member.objects.create(
+            chapter=chapter1,
+            first_name='Member2',
+            last_name='Chapter1',
+            role='member',
+            is_active=True
+        )
+        
+        Member.objects.create(
+            chapter=chapter2,
+            first_name='Member1',
+            last_name='Chapter2',
+            role='president',
+            is_active=True
+        )
+        
+        # Update and verify stats
+        self.club.update_stats()
+        
+        self.assertEqual(self.club.total_chapters, 2)
+        self.assertEqual(self.club.total_members, 3)
+
+    def test_club_visibility_settings(self):
+        """Test club visibility and chapter acceptance settings"""
+        # Test public club that accepts chapters
+        public_club = Club.objects.create(
+            name='Public Club',
+            is_public=True,
+            accepts_new_chapters=True
+        )
+        
+        self.assertTrue(public_club.is_public)
+        self.assertTrue(public_club.accepts_new_chapters)
+        
+        # Test private club that doesn't accept chapters
+        private_club = Club.objects.create(
+            name='Private Club',
+            is_public=False,
+            accepts_new_chapters=False
+        )
+        
+        self.assertFalse(private_club.is_public)
+        self.assertFalse(private_club.accepts_new_chapters)

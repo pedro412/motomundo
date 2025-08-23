@@ -13,6 +13,10 @@ router.register(r'members', api.MemberViewSet)
 router.register(r'club-admins', api.ClubAdminViewSet)
 router.register(r'chapter-admins', api.ChapterAdminViewSet)
 
+# Discovery API endpoints (public access)
+router.register(r'discovery/clubs', api.ClubDiscoveryViewSet, basename='discovery-clubs')
+router.register(r'discovery/join-requests', api.ChapterJoinRequestViewSet, basename='join-requests')
+
 app_name = 'clubs'
 
 urlpatterns = [

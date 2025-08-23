@@ -5,7 +5,7 @@ from django.conf import settings
 from django.templatetags.static import static
 import os
 import logging
-from .models import Club, Chapter, Member, ClubAdmin, ChapterAdmin
+from .models import Club, Chapter, Member, ClubAdmin, ChapterAdmin, ChapterJoinRequest
 
 logger = logging.getLogger(__name__)
 
@@ -148,11 +148,16 @@ class ClubSerializer(serializers.ModelSerializer):
 class ChapterSerializer(serializers.ModelSerializer):
     club = serializers.PrimaryKeyRelatedField(queryset=Club.objects.all())
     total_members = serializers.SerializerMethodField()
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
 
     class Meta:
         model = Chapter
         fields = [
             'id', 'club', 'name', 'description', 'foundation_date',
+            'city', 'state_new', 'location', 'latitude', 'longitude',
+            'owner', 'is_active', 'is_public', 'accepts_new_members',
+            'meeting_info', 'contact_email',
             'created_at', 'updated_at', 'total_members'
         ]
 
@@ -161,6 +166,22 @@ class ChapterSerializer(serializers.ModelSerializer):
         Return the total number of members for this chapter
         """
         return Member.objects.filter(chapter=obj).count()
+    
+    def get_latitude(self, obj):
+        """
+        Return the latitude from the location point field
+        """
+        if obj.location:
+            return obj.location.y
+        return None
+    
+    def get_longitude(self, obj):
+        """
+        Return the longitude from the location point field
+        """
+        if obj.location:
+            return obj.location.x
+        return None
 
 
 class MemberSerializer(serializers.ModelSerializer):
@@ -279,6 +300,100 @@ class ChapterAdminSerializer(serializers.ModelSerializer):
         
         return data
 
-    def create(self, validated_data):
-        validated_data['created_by'] = self.context['request'].user
-        return super().create(validated_data)
+
+class ChapterJoinRequestSerializer(serializers.ModelSerializer):
+    """
+    Serializer for ChapterJoinRequest model
+    """
+    club_name = serializers.CharField(source='club.name', read_only=True)
+    requester_username = serializers.CharField(source='requested_by.username', read_only=True)
+    requester_email = serializers.CharField(source='requested_by.email', read_only=True)
+    
+    class Meta:
+        model = ChapterJoinRequest
+        fields = [
+            'id', 'club', 'club_name', 'requested_by', 'requester_username', 'requester_email',
+            'proposed_chapter_name', 'city', 'state', 'description', 'reason', 
+            'estimated_members', 'status', 'admin_notes', 'created_at', 'reviewed_at'
+        ]
+        read_only_fields = ['requested_by', 'status', 'admin_notes', 'reviewed_at']
+    
+    def validate_club(self, value):
+        """Validate that the club accepts new chapters"""
+        if not value.accepts_new_chapters:
+            raise serializers.ValidationError(
+                "This club is not currently accepting new chapter requests."
+            )
+        return value
+    
+    def validate_proposed_chapter_name(self, value):
+        """Validate that the proposed chapter name doesn't conflict"""
+        if hasattr(self, 'initial_data'):
+            club_id = self.initial_data.get('club')
+            if club_id:
+                try:
+                    club = Club.objects.get(id=club_id)
+                    if Chapter.objects.filter(club=club, name__iexact=value).exists():
+                        raise serializers.ValidationError(
+                            f"A chapter with the name '{value}' already exists in this club."
+                        )
+                except Club.DoesNotExist:
+                    pass
+        return value
+    
+    def validate_estimated_members(self, value):
+        """Validate estimated members is reasonable"""
+        if value < 1:
+            raise serializers.ValidationError("Estimated members must be at least 1.")
+        if value > 1000:
+            raise serializers.ValidationError("Estimated members seems unreasonably high.")
+        return value
+
+
+class ChapterJoinRequestSerializer(serializers.ModelSerializer):
+    """
+    Serializer for ChapterJoinRequest model
+    """
+    club_name = serializers.CharField(source='club.name', read_only=True)
+    requester_username = serializers.CharField(source='requested_by.username', read_only=True)
+    requester_email = serializers.CharField(source='requested_by.email', read_only=True)
+    
+    class Meta:
+        model = ChapterJoinRequest
+        fields = [
+            'id', 'club', 'club_name', 'requested_by', 'requester_username', 'requester_email',
+            'proposed_chapter_name', 'city', 'state', 'description', 'reason', 
+            'estimated_members', 'status', 'admin_notes', 'created_at', 'reviewed_at'
+        ]
+        read_only_fields = ['requested_by', 'status', 'admin_notes', 'reviewed_at']
+    
+    def validate_club(self, value):
+        """Validate that the club accepts new chapters"""
+        if not value.accepts_new_chapters:
+            raise serializers.ValidationError(
+                "This club is not currently accepting new chapter requests."
+            )
+        return value
+    
+    def validate_proposed_chapter_name(self, value):
+        """Validate that the proposed chapter name doesn't conflict"""
+        if hasattr(self, 'initial_data'):
+            club_id = self.initial_data.get('club')
+            if club_id:
+                try:
+                    club = Club.objects.get(id=club_id)
+                    if Chapter.objects.filter(club=club, name__iexact=value).exists():
+                        raise serializers.ValidationError(
+                            f"A chapter with the name '{value}' already exists in this club."
+                        )
+                except Club.DoesNotExist:
+                    pass
+        return value
+    
+    def validate_estimated_members(self, value):
+        """Validate estimated members is reasonable"""
+        if value < 1:
+            raise serializers.ValidationError("Estimated members must be at least 1.")
+        if value > 1000:
+            raise serializers.ValidationError("Estimated members seems unreasonably high.")
+        return value

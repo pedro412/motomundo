@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15
+    image: postgis/postgis:15-3.3
     environment:
       POSTGRES_DB: motomundo_dev
       POSTGRES_USER: motomundo

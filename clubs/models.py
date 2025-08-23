@@ -6,8 +6,10 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from django.utils.module_loading import import_string
 from django.conf import settings as django_settings
+from django.contrib.gis.db import models as gis_models
 
 from motomundo import settings
+from geography.models import Country, State
 
 
 def get_image_storage():
@@ -18,6 +20,13 @@ def get_image_storage():
 
 
 class Club(models.Model):
+    CLUB_TYPE_CHOICES = [
+        ('mc', 'Motorcycle Club'),
+        ('association', 'Association'),
+        ('organization', 'Organization'),
+        ('riding_group', 'Riding Group'),
+    ]
+    
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     foundation_date = models.DateField(null=True, blank=True)
@@ -29,15 +38,101 @@ class Club(models.Model):
         help_text="Club logo - automatically optimized and stored in the cloud"
     )
     website = models.URLField(blank=True)
+    
+    # NEW FIELDS FOR DISCOVERY PLATFORM
+    # Club type and categorization
+    club_type = models.CharField(
+        max_length=50, 
+        choices=CLUB_TYPE_CHOICES, 
+        default='mc',
+        help_text="Type of motorcycle organization"
+    )
+    
+    # Geographic information
+    country = models.CharField(max_length=100, default='Mexico')  # Keep original field
+    country_new = models.ForeignKey(
+        Country, 
+        on_delete=models.CASCADE, 
+        null=True,
+        blank=True,
+        help_text="Country where this club is primarily located"
+    )
+    primary_state = models.CharField(
+        max_length=100, 
+        blank=True,
+        help_text="Primary state where this club is located"
+    )  # Keep original field
+    primary_state_new = models.ForeignKey(
+        State,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Primary state where this club is located"
+    )
+    founded_year = models.PositiveIntegerField(
+        null=True, 
+        blank=True,
+        help_text="Year the club was founded"
+    )
+    
+    # Visibility and public settings
+    is_public = models.BooleanField(
+        default=True,
+        help_text="Whether this club appears in public discovery"
+    )
+    accepts_new_chapters = models.BooleanField(
+        default=True,
+        help_text="Whether this club accepts requests for new chapters"
+    )
+    
+    # Contact information for discovery
+    contact_email = models.EmailField(
+        blank=True,
+        help_text="Contact email for inquiries about joining this club"
+    )
+    
+    # Auto-calculated statistics for discovery
+    total_members = models.PositiveIntegerField(
+        default=0,
+        help_text="Total active members across all chapters (auto-updated)"
+    )
+    total_chapters = models.PositiveIntegerField(
+        default=0,
+        help_text="Total active chapters (auto-updated)"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['country', 'primary_state']),
+            models.Index(fields=['club_type']),
+            models.Index(fields=['is_public']),
+        ]
 
     def __str__(self):
         return self.name
     
+    def update_stats(self):
+        """Update total_members and total_chapters counts"""
+        # Count active chapters
+        self.total_chapters = self.chapters.filter(is_active=True).count()
+        
+        # Count active members across all active chapters
+        from django.db.models import Q
+        self.total_members = Member.objects.filter(
+            chapter__club=self,
+            chapter__is_active=True,
+            is_active=True
+        ).count()
+        
+        self.save(update_fields=['total_members', 'total_chapters'])
+    
     @property 
-    def total_members(self):
-        """Count all active members across all chapters in this club"""
+    def total_members_legacy(self):
+        """Count all active members across all chapters in this club (legacy property)"""
         from django.db.models import Q
         return Member.objects.filter(
             chapter__club=self,
@@ -50,6 +145,68 @@ class Chapter(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     foundation_date = models.DateField(null=True, blank=True)
+    
+    # NEW FIELDS FOR DISCOVERY PLATFORM
+    # Geographic location for discovery
+    city = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="City where this chapter is located"
+    )
+    state = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="State where this chapter is located"
+    )  # Keep original field
+    state_new = models.ForeignKey(
+        State,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="State where this chapter is located"
+    )
+    # TODO: Add GeoDjango support for location field
+    location = gis_models.PointField(
+        null=True, 
+        blank=True,
+        help_text="Geographic coordinates for map display",
+        srid=4326  # WGS84 coordinate system
+    )
+    
+    # Chapter ownership for management
+    owner = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name="owned_chapters",
+        null=True,
+        blank=True,
+        help_text="User who owns and manages this chapter"
+    )
+    
+    # Visibility and activity settings
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this chapter is active and operational"
+    )
+    is_public = models.BooleanField(
+        default=True,
+        help_text="Whether this chapter appears in public discovery"
+    )
+    accepts_new_members = models.BooleanField(
+        default=True,
+        help_text="Whether this chapter is accepting new members"
+    )
+    
+    # Additional chapter information
+    meeting_info = models.TextField(
+        blank=True,
+        help_text="Information about chapter meetings (time, place, etc.)"
+    )
+    contact_email = models.EmailField(
+        blank=True,
+        help_text="Contact email for this chapter"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -58,9 +215,24 @@ class Chapter(models.Model):
             models.UniqueConstraint(fields=["club", "name"], name="unique_chapter_name_per_club"),
         ]
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=['state', 'city']),
+            models.Index(fields=['club', 'is_active']),
+            models.Index(fields=['is_public', 'is_active']),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.club.name})"
+    
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Auto-update parent club stats whenever chapter changes
+        if self.club_id:
+            self.club.update_stats()
+    
+    def can_manage(self, user):
+        """Check if user can manage this chapter"""
+        return user == self.owner
 
 class Member(models.Model):
     ROLE_CHOICES = [
@@ -178,6 +350,134 @@ class Member(models.Model):
         # Ensure validation runs on programmatic saves as well
         self.full_clean()
         return super().save(*args, **kwargs)
+
+
+class ChapterJoinRequest(models.Model):
+    """
+    Simplified requests to create chapters under existing clubs
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    
+    club = models.ForeignKey(
+        Club, 
+        on_delete=models.CASCADE, 
+        related_name="join_requests",
+        help_text="Club the user wants to create a chapter under"
+    )
+    requested_by = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE,
+        help_text="User requesting to create the chapter"
+    )
+    
+    # Proposed chapter information
+    proposed_chapter_name = models.CharField(
+        max_length=200,
+        help_text="Name for the proposed chapter"
+    )
+    city = models.CharField(
+        max_length=100,
+        help_text="City where the chapter will be located"
+    )
+    state = models.CharField(
+        max_length=100,
+        help_text="State where the chapter will be located"
+    )  # Keep original field
+    state_new = models.ForeignKey(
+        State,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="State where the chapter will be located"
+    )
+    description = models.TextField(
+        help_text="Description of the proposed chapter"
+    )
+    reason = models.TextField(
+        help_text="Why the user wants to join this club"
+    )
+    estimated_members = models.PositiveIntegerField(
+        help_text="Estimated number of initial members"
+    )
+    
+    # Request status and management
+    status = models.CharField(
+        max_length=20, 
+        choices=STATUS_CHOICES, 
+        default='pending'
+    )
+    admin_notes = models.TextField(
+        blank=True,
+        help_text="Notes from admin review"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['club', 'status']),
+            models.Index(fields=['requested_by', 'status']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.proposed_chapter_name} - {self.club.name} ({self.status})"
+    
+    def approve(self, admin_notes=""):
+        """
+        Approve the join request and create the chapter
+        """
+        from django.utils import timezone
+        
+        if self.status != 'pending':
+            raise ValueError("Can only approve pending requests")
+        
+        # Create the chapter
+        chapter = Chapter.objects.create(
+            name=self.proposed_chapter_name,
+            club=self.club,
+            city=self.city,
+            state=self.state,
+            state_new=self.state_new,
+            description=self.description,
+            owner=self.requested_by,
+            is_public=True,  # Default to public
+            accepts_new_members=True  # Default to accepting members
+        )
+        
+        # Update the request
+        self.status = 'approved'
+        self.admin_notes = admin_notes
+        self.reviewed_at = timezone.now()
+        self.save()
+        
+        # Update club stats
+        self.club.update_stats()
+        
+        return chapter
+    
+    def reject(self, admin_notes=""):
+        """
+        Reject the join request
+        """
+        from django.utils import timezone
+        
+        if self.status != 'pending':
+            raise ValueError("Can only reject pending requests")
+        
+        self.status = 'rejected'
+        self.admin_notes = admin_notes
+        self.reviewed_at = timezone.now()
+        self.save()
+        
+        return self
 
 
 class ClubAdmin(models.Model):
