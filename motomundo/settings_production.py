@@ -69,7 +69,7 @@ def _build_db_config():
         )
 
     return {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',  # PostGIS backend for geographic features
         'NAME': name,
         'USER': user,
         'PASSWORD': password,

@@ -12,16 +12,18 @@ PORT = int(os.environ.get('PORT', 8000))
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 ALLOWED_HOSTS = ['*']  # Railway handles domain routing
 
-# Database configuration for Railway PostgreSQL
+# Database configuration for Railway PostgreSQL with PostGIS
 if 'DATABASE_URL' in os.environ:
     DATABASES = {
         'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
     }
+    # Override engine to use PostGIS for geographic features
+    DATABASES['default']['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
 else:
-    # Fallback to local PostgreSQL
+    # Fallback to local PostgreSQL with PostGIS
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.postgresql',
+            'ENGINE': 'django.contrib.gis.db.backends.postgis',
             'NAME': os.environ.get('DJANGO_DB_NAME', 'motomundo'),
             'USER': os.environ.get('DJANGO_DB_USER', 'motomundo'),
             'PASSWORD': os.environ.get('DJANGO_DB_PASSWORD', 'motomundo'),
