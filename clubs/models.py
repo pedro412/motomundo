@@ -290,6 +290,7 @@ class Member(models.Model):
         help_text="Unique code that allows a user to claim this member profile"
     )
     is_active = models.BooleanField(default=True)
+    metadata = models.JSONField(default=dict, blank=True, help_text="Additional member metadata")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

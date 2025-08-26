@@ -198,6 +198,53 @@
         .select2-container--default .select2-results__option[aria-selected=true] {
             background-color: rgba(255, 107, 53, 0.3) !important;
         }
+        
+        /* Custom checkbox styling */
+        .form-check-input {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            width: 1.2em;
+            height: 1.2em;
+        }
+        
+        .form-check-input:checked {
+            background-color: #ff6b35;
+            border-color: #ff6b35;
+        }
+        
+        .form-check-input:focus {
+            border-color: #ff6b35;
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.25);
+        }
+        
+        .form-check-label {
+            color: #fff;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        
+        /* Copilot fields animation */
+        #copilot-fields {
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        #copilot-fields.show {
+            display: block !important;
+            animation: slideDown 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+            }
+            to {
+                opacity: 1;
+                max-height: 200px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -390,7 +437,7 @@
                                     <label for="{{ form.national_role.id_for_label }}" class="form-label">
                                         Rol Nacional (Solo si aplica)
                                     </label>
-                                                                        <select name="{{ form.national_role.name }}" class="form-select searchable-select" id="{{ form.national_role.id_for_label }}">
+                                    <select name="{{ form.national_role.name }}" class="form-select searchable-select" id="{{ form.national_role.id_for_label }}">
                                         <option value="">Selecciona cargo nacional (opcional)</option>
                                         <option value="national_president">Presidente Nacional</option>
                                         <option value="national_vice_president">Vicepresidente Nacional</option>
@@ -410,6 +457,47 @@
                                     {% if form.national_role.errors %}
                                         <div class="text-danger mt-1">
                                             {% for error in form.national_role.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Copilot-specific fields (initially hidden) -->
+                            <div id="copilot-fields" class="row" style="display: none;">
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-check">
+                                        {{ form.is_vested }}
+                                        <label class="form-check-label" for="{{ form.is_vested.id_for_label }}">
+                                            {{ form.is_vested.label }}
+                                        </label>
+                                    </div>
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        Marca si es un miembro enchalecado
+                                    </div>
+                                    {% if form.is_vested.errors %}
+                                        <div class="text-danger mt-1">
+                                            {% for error in form.is_vested.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.linked_to.id_for_label }}" class="form-label">
+                                        {{ form.linked_to.label }}
+                                    </label>
+                                    {{ form.linked_to }}
+                                    <div class="help-text">
+                                        <i class="fas fa-link"></i>
+                                        Selecciona el piloto al que está asignado este copiloto
+                                    </div>
+                                    {% if form.linked_to.errors %}
+                                        <div class="text-danger mt-1">
+                                            {% for error in form.linked_to.errors %}
                                                 <small>{{ error }}</small>
                                             {% endfor %}
                                         </div>
@@ -502,9 +590,44 @@
                 }
             });
             
+            // Initialize Select2 for the linked_to field (for copilots)
+            $('#{{ form.linked_to.id_for_label }}').select2({
+                placeholder: 'Selecciona un piloto',
+                allowClear: true,
+                width: '100%',
+                language: {
+                    noResults: function() {
+                        return "No se encontraron pilotos";
+                    },
+                    searching: function() {
+                        return "Buscando...";
+                    }
+                }
+            });
+            
+            // Function to toggle copilot fields
+            function toggleCopilotFields() {
+                const memberType = $('#{{ form.member_type.id_for_label }}').val();
+                const copilotFields = $('#copilot-fields');
+                
+                if (memberType === 'copilot') {
+                    copilotFields.addClass('show').slideDown(300);
+                } else {
+                    copilotFields.removeClass('show').slideUp(300);
+                    // Reset copilot-specific fields when not a copilot
+                    $('#{{ form.is_vested.id_for_label }}').prop('checked', false);
+                    $('#{{ form.linked_to.id_for_label }}').val(null).trigger('change');
+                }
+            }
+            
+            // Handle member type change
+            $('#{{ form.member_type.id_for_label }}').on('change', toggleCopilotFields);
+            
+            // Check initial state (for edit forms)
+            toggleCopilotFields();
+            
             // Add some interactive effects
-            const form = document.getElementById('registration-form');
-            const inputs = form.querySelectorAll('.form-control:not(select)');
+            const inputs = document.querySelectorAll('.form-control:not(select)');
             
             inputs.forEach(input => {
                 input.addEventListener('focus', function() {
