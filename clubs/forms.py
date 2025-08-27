@@ -1,4 +1,5 @@
 from django import forms
+from django.db.models import Q
 from .models import Member, Club, Chapter
 
 class MemberRegistrationForm(forms.ModelForm):
@@ -55,9 +56,71 @@ class MemberRegistrationForm(forms.ModelForm):
             linked_to_id = self.instance.metadata.get('linked_to')
             if linked_to_id:
                 try:
-                    self.fields['linked_to'].initial = Member.objects.get(id=linked_to_id)
+                    linked_pilot = Member.objects.get(id=linked_to_id)
+                    # Temporarily expand queryset to include the linked pilot for edit forms
+                    self.fields['linked_to'].queryset = Member.objects.filter(
+                        Q(id=linked_to_id) | 
+                        Q(
+                            chapter__club__name="Alterados MC",
+                            is_active=True,
+                            member_type='pilot'
+                        )
+                    ).distinct()
+                    self.fields['linked_to'].initial = linked_pilot
                 except Member.DoesNotExist:
                     pass
+
+    def clean_linked_to(self):
+        """
+        Custom validation for the linked_to field
+        """
+        linked_to = self.cleaned_data.get('linked_to')
+        member_type = self.cleaned_data.get('member_type')
+        chapter = self.cleaned_data.get('chapter')
+        
+        # If not a copilot, linked_to should be None
+        if member_type != 'copilot':
+            return None
+        
+        # If copilot but no pilot selected, that's okay (optional field)
+        if not linked_to:
+            return None
+        
+        # Validate that the selected pilot exists and is from the same chapter
+        if chapter:
+            try:
+                # Validate the pilot exists and is from the same chapter
+                pilot = Member.objects.get(
+                    id=linked_to.id,
+                    chapter=chapter,
+                    member_type='pilot',
+                    is_active=True
+                )
+                return pilot
+            except Member.DoesNotExist:
+                raise forms.ValidationError(
+                    'El piloto seleccionado no existe o no pertenece al capítulo seleccionado.'
+                )
+        
+        return linked_to
+
+    def clean(self):
+        """
+        Custom form validation
+        """
+        cleaned_data = super().clean()
+        member_type = cleaned_data.get('member_type')
+        linked_to = cleaned_data.get('linked_to')
+        
+        # Additional validation for copilots
+        if member_type == 'copilot' and linked_to:
+            chapter = cleaned_data.get('chapter')
+            if chapter and linked_to.chapter != chapter:
+                raise forms.ValidationError(
+                    'El piloto seleccionado debe pertenecer al mismo capítulo.'
+                )
+        
+        return cleaned_data
 
     def save(self, commit=True):
         instance = super().save(commit=False)

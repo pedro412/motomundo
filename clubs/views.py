@@ -17,6 +17,29 @@ def member_registration(request):
     """
     if request.method == 'POST':
         form = MemberRegistrationForm(request.POST, request.FILES)
+        
+        # Handle dynamic pilot selection for copilots
+        linked_to_id = request.POST.get('linked_to')
+        if linked_to_id:
+            try:
+                # Expand the queryset to include the selected pilot
+                selected_pilot = Member.objects.get(
+                    id=linked_to_id,
+                    member_type='pilot',
+                    is_active=True
+                )
+                # Get the chapter from the form to validate
+                chapter_id = request.POST.get('chapter')
+                if chapter_id and str(selected_pilot.chapter.id) == str(chapter_id):
+                    form.fields['linked_to'].queryset = Member.objects.filter(id=linked_to_id)
+                else:
+                    # Pilot doesn't belong to selected chapter
+                    messages.error(request, 'El piloto seleccionado no pertenece al capítulo seleccionado.')
+                    form.fields['linked_to'].queryset = Member.objects.none()
+            except (Member.DoesNotExist, ValueError):
+                messages.error(request, 'El piloto seleccionado no es válido.')
+                form.fields['linked_to'].queryset = Member.objects.none()
+        
         if form.is_valid():
             try:
                 # Save the member - the form handles all the fields
