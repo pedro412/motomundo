@@ -26,6 +26,9 @@ urlpatterns = [
     path('register/alteradosmc/', views.member_registration, name='member_registration'),
     path('register/alteradosmc/success/', views.member_registration_success, name='registration_success'),
     
+    # AJAX endpoints for dynamic form behavior
+    path('ajax/pilots-by-chapter/', views.get_pilots_by_chapter, name='get_pilots_by_chapter'),
+    
     # API endpoints using DRF router
     path('api/', include(router.urls)),
 ]

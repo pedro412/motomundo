@@ -493,7 +493,7 @@
                                     {{ form.linked_to }}
                                     <div class="help-text">
                                         <i class="fas fa-link"></i>
-                                        Selecciona el piloto al que está asignado este copiloto
+                                        Selecciona el piloto de tu capítulo al que estás asignado
                                     </div>
                                     {% if form.linked_to.errors %}
                                         <div class="text-danger mt-1">
@@ -605,6 +605,59 @@
                 }
             });
             
+            // Function to load pilots based on selected chapter
+            function loadPilotsByChapter(chapterId) {
+                const linkedToSelect = $('#{{ form.linked_to.id_for_label }}');
+                
+                if (!chapterId) {
+                    // Clear the pilots dropdown if no chapter selected
+                    linkedToSelect.empty().append('<option value="">Primero selecciona un capítulo</option>').trigger('change');
+                    return;
+                }
+                
+                // Show loading state
+                linkedToSelect.empty().append('<option value="">Cargando pilotos...</option>').trigger('change');
+                
+                // Make AJAX request to get pilots for this chapter
+                $.ajax({
+                    url: '{% url "clubs:get_pilots_by_chapter" %}',
+                    type: 'GET',
+                    data: {
+                        'chapter_id': chapterId
+                    },
+                    success: function(response) {
+                        linkedToSelect.empty();
+                        linkedToSelect.append('<option value="">Selecciona un piloto</option>');
+                        
+                        if (response.pilots && response.pilots.length > 0) {
+                            $.each(response.pilots, function(index, pilot) {
+                                const displayName = pilot.nickname ? 
+                                    `${pilot.name} (${pilot.nickname})` : 
+                                    pilot.name;
+                                linkedToSelect.append(
+                                    `<option value="${pilot.id}">${displayName}</option>`
+                                );
+                            });
+                        } else {
+                            linkedToSelect.append('<option value="">No hay pilotos disponibles en este capítulo</option>');
+                        }
+                        
+                        linkedToSelect.trigger('change');
+                    },
+                    error: function() {
+                        linkedToSelect.empty()
+                            .append('<option value="">Error al cargar pilotos</option>')
+                            .trigger('change');
+                    }
+                });
+            }
+            
+            // Handle chapter selection change
+            $('#{{ form.chapter.id_for_label }}').on('change', function() {
+                const chapterId = $(this).val();
+                loadPilotsByChapter(chapterId);
+            });
+            
             // Function to toggle copilot fields
             function toggleCopilotFields() {
                 const memberType = $('#{{ form.member_type.id_for_label }}').val();
@@ -612,6 +665,11 @@
                 
                 if (memberType === 'copilot') {
                     copilotFields.addClass('show').slideDown(300);
+                    // Load pilots for currently selected chapter
+                    const chapterId = $('#{{ form.chapter.id_for_label }}').val();
+                    if (chapterId) {
+                        loadPilotsByChapter(chapterId);
+                    }
                 } else {
                     copilotFields.removeClass('show').slideUp(300);
                     // Reset copilot-specific fields when not a copilot

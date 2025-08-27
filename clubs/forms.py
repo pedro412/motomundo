@@ -32,20 +32,13 @@ class MemberRegistrationForm(forms.ModelForm):
             alterados_club = Club.objects.get(name="Alterados MC")
             self.fields['chapter'].queryset = Chapter.objects.filter(club=alterados_club)
             
-            # Populate linked_to field with all active members from Alterados MC
-            self.fields['linked_to'].queryset = Member.objects.filter(
-                chapter__club=alterados_club,
-                is_active=True,
-                member_type='pilot'  # Only show pilots as options
-            ).select_related('chapter').order_by('first_name', 'last_name')
+            # Initially show no pilots - will be populated via JavaScript based on chapter selection
+            self.fields['linked_to'].queryset = Member.objects.none()
             
         except Club.DoesNotExist:
-            # If Alterados MC doesn't exist, show all chapters and members
+            # If Alterados MC doesn't exist, show all chapters and no pilots initially
             self.fields['chapter'].queryset = Chapter.objects.all()
-            self.fields['linked_to'].queryset = Member.objects.filter(
-                is_active=True,
-                member_type='pilot'
-            ).select_related('chapter').order_by('first_name', 'last_name')
+            self.fields['linked_to'].queryset = Member.objects.none()
         
         # Update the chapter field placeholder
         self.fields['chapter'].empty_label = "Selecciona tu capítulo"

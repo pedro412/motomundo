@@ -52,3 +52,37 @@ def member_registration_success(request):
     return render(request, 'clubs/member_registration_success.html', {
         'club_name': 'Alterados MC'
     })
+
+
+def get_pilots_by_chapter(request):
+    """
+    AJAX endpoint to get pilots from a specific chapter
+    """
+    chapter_id = request.GET.get('chapter_id')
+    
+    if not chapter_id:
+        return JsonResponse({'pilots': []})
+    
+    try:
+        chapter = Chapter.objects.get(id=chapter_id)
+        pilots = Member.objects.filter(
+            chapter=chapter,
+            is_active=True,
+            member_type='pilot'
+        ).order_by('first_name', 'last_name')
+        
+        pilots_data = [
+            {
+                'id': pilot.id,
+                'name': f"{pilot.first_name} {pilot.last_name}".strip(),
+                'nickname': pilot.nickname or ''
+            }
+            for pilot in pilots
+        ]
+        
+        return JsonResponse({'pilots': pilots_data})
+        
+    except Chapter.DoesNotExist:
+        return JsonResponse({'pilots': []})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
