@@ -194,7 +194,7 @@ class MemberSerializer(serializers.ModelSerializer):
         model = Member
         fields = [
             'id', 'chapter', 'club', 'first_name', 'last_name', 'nickname', 'date_of_birth', 'profile_picture',
-            'role', 'member_type', 'national_role', 'joined_at', 'user', 'claim_code', 'is_active', 'created_at', 'updated_at'
+            'role', 'member_type', 'national_role', 'joined_at', 'user', 'claim_code', 'is_active', 'metadata', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at', 'club']
         extra_kwargs = {
