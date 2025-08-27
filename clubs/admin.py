@@ -65,7 +65,9 @@ class ChapterModelAdmin(GISModelAdmin):
 	# GIS Admin settings for interactive map
 	gis_widget_kwargs = {
 		'attrs': {
-			'default_zoom': 12,
+			'default_zoom': 6,
+			'default_lat': 23.6345,  # Center of Mexico latitude
+			'default_lon': -102.5528,  # Center of Mexico longitude
 			'display_wkt': False,
 			'map_srid': 4326,
 		},
